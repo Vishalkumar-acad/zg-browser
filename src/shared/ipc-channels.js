@@ -34,6 +34,10 @@ const IPC_CHANNELS = Object.freeze({
   PRIVACY_ALLOWLIST_SITE: 'privacy:allowlist-site',
   PRIVACY_CLEAR_SITE_DATA: 'privacy:clear-site-data',
   PRIVACY_GET_BLOCKED_STATS: 'privacy:get-blocked-stats',
+  PRIVACY_GET_ALLOWLIST: 'privacy:get-allowlist',
+
+  // System & Version Info (Renderer -> Main)
+  SYSTEM_GET_ABOUT: 'system:get-about',
 
   // Reader Mode & Distraction-Free UI (Renderer -> Main)
   READER_TOGGLE: 'reader:toggle',

@@ -14,8 +14,8 @@ try {
 } catch {
   electron = {};
 }
-const { BrowserWindow, WebContentsView } = electron;
-const { DEFAULT_TRUSTED_URL, SCRATCHPAD_BOUNDS } = require('../shared/constants');
+const { BrowserWindow, WebContentsView, Menu } = electron;
+const { DEFAULT_TRUSTED_URL, SCRATCHPAD_BOUNDS, TOP_BAR_HEIGHT } = require('../shared/constants');
 const { getTrustedUIWebPreferences, getUntrustedWebPreferences } = require('./security-controller');
 
 /**
@@ -25,47 +25,54 @@ const { getTrustedUIWebPreferences, getUntrustedWebPreferences } = require('./se
  * @param {Object} params
  * @param {number} params.windowWidth
  * @param {number} params.windowHeight
- * @param {boolean} params.overlayOpen - Whether any floating overlay (omnibar, tabstrip, etc.) is visible
+ * @param {boolean} params.overlayOpen - Whether any floating overlay (omnibar, settings, etc.) is visible
  * @param {boolean} params.scratchpadOpen - Whether scratchpad code drawer is docked open
  * @param {number} [params.scratchpadWidth] - Desired width of scratchpad drawer
+ * @param {boolean} [params.distractionFree] - Whether distraction-free mode is enabled
  */
 function calculateLayerBounds({
   windowWidth,
   windowHeight,
   overlayOpen,
   scratchpadOpen,
-  scratchpadWidth = SCRATCHPAD_BOUNDS.DEFAULT_WIDTH
+  scratchpadWidth = SCRATCHPAD_BOUNDS.DEFAULT_WIDTH,
+  distractionFree = false
 }) {
   const w = Math.max(0, windowWidth);
   const h = Math.max(0, windowHeight);
+
+  // In standard browsing mode, the top chrome is persistent (TOP_BAR_HEIGHT = 74)
+  // In distraction-free mode without active overlays, it collapses to 4px
+  const topBarH = distractionFree ? (overlayOpen ? TOP_BAR_HEIGHT : 4) : TOP_BAR_HEIGHT;
 
   // Clamped scratchpad drawer width
   const actualDrawerWidth = scratchpadOpen
     ? Math.max(SCRATCHPAD_BOUNDS.MIN_WIDTH, Math.min(scratchpadWidth, w - SCRATCHPAD_BOUNDS.MIN_WIDTH))
     : 0;
 
-  // Website viewport bounds (shrinks horizontally when scratchpad is docked open)
+  // Website viewport bounds (starts below top bar when not in distraction-free mode)
   const websiteBounds = {
     x: 0,
-    y: 0,
+    y: distractionFree ? 0 : topBarH,
     width: Math.max(0, w - actualDrawerWidth),
-    height: h
+    height: Math.max(0, h - (distractionFree ? 0 : topBarH))
   };
 
   // Trusted UI bounds:
-  // When an overlay is open or scratchpad is open, UI view covers necessary interactive area
-  // When overlays are collapsed, UI view shrinks to a 4px top trigger zone (allowing clicks through to website)
+  // When an overlay or scratchpad is open: covers full window
+  // When overlays are collapsed: covers persistent top bar (or 4px strip in distraction-free mode)
   const uiBounds = {
     x: 0,
     y: 0,
     width: w,
-    height: (overlayOpen || scratchpadOpen) ? h : 4
+    height: (overlayOpen || scratchpadOpen) ? h : topBarH
   };
 
   return {
     websiteBounds,
     uiBounds,
-    actualDrawerWidth
+    actualDrawerWidth,
+    topBarHeight: topBarH
   };
 }
 
@@ -82,12 +89,18 @@ class WindowManager {
     this.activeOverlayId = null;
     this.scratchpadOpen = false;
     this.scratchpadWidth = SCRATCHPAD_BOUNDS.DEFAULT_WIDTH;
+    this.distractionFree = false;
   }
 
   /**
    * Creates the main BrowserWindow and initializes Dual-Layer views
    */
   createWindow() {
+    // Suppress native File Edit View Window Help application menu
+    if (Menu && typeof Menu.setApplicationMenu === 'function') {
+      Menu.setApplicationMenu(null);
+    }
+
     this.mainWindow = new BrowserWindow({
       width: 1280,
       height: 800,
@@ -95,12 +108,17 @@ class WindowManager {
       minHeight: 600,
       title: 'Zero-Gravity Browser',
       backgroundColor: '#0a0a0a',
+      autoHideMenuBar: true,
       webPreferences: {
         sandbox: true,
         nodeIntegration: false,
         contextIsolation: true
       }
     });
+
+    if (typeof this.mainWindow.setMenuBarVisibility === 'function') {
+      this.mainWindow.setMenuBarVisibility(false);
+    }
 
     // 1. Create Top Layer: Trusted UI WebContentsView
     this.uiView = new WebContentsView({
@@ -165,7 +183,8 @@ class WindowManager {
       windowHeight: height,
       overlayOpen: isOverlayOpen,
       scratchpadOpen: this.scratchpadOpen,
-      scratchpadWidth: this.scratchpadWidth
+      scratchpadWidth: this.scratchpadWidth,
+      distractionFree: this.distractionFree
     });
 
     if (this.activeWebsiteView) {
@@ -175,6 +194,16 @@ class WindowManager {
     if (this.uiView) {
       this.uiView.setBounds(uiBounds);
     }
+  }
+
+  /**
+   * Sets distraction-free UI mode
+   * @param {boolean} enabled
+   */
+  setDistractionFree(enabled) {
+    this.distractionFree = Boolean(enabled);
+    this.updateLayout();
+    return { distractionFree: this.distractionFree };
   }
 
   /**

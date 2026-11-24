@@ -193,6 +193,14 @@ class PrivacyManager {
   }
 
   /**
+   * Returns list of currently user-allowlisted domains
+   * @returns {string[]}
+   */
+  getAllowlist() {
+    return Array.from(this.allowlistedDomains);
+  }
+
+  /**
    * Returns blocked tracking statistics for a specific tab
    * @param {string} tabId
    */

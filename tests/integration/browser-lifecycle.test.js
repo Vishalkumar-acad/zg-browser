@@ -45,16 +45,30 @@ describe('End-to-End Browser Lifecycle Integration Pipeline', () => {
       const windowWidth = 1280;
       const windowHeight = 800;
 
-      // Closed state: UI view collapsed to 4px trigger strip
-      const closed = calculateLayerBounds({
+      // Default state: persistent top chrome (74px) for address bar, tabs, and controls
+      const defaultLayout = calculateLayerBounds({
         windowWidth,
         windowHeight,
         overlayOpen: false,
-        scratchpadOpen: false
+        scratchpadOpen: false,
+        distractionFree: false
       });
-      assert.equal(closed.uiBounds.height, 4, 'UI view collapses to 4px non-blocking strip when closed');
-      assert.equal(closed.websiteBounds.width, 1280, 'Website view gets full width');
-      assert.equal(closed.websiteBounds.height, 800, 'Website view gets full height');
+      assert.equal(defaultLayout.uiBounds.height, 74, 'UI view covers 74px top bar so address bar is visible');
+      assert.equal(defaultLayout.websiteBounds.y, 74, 'Website view starts below 74px top bar');
+      assert.equal(defaultLayout.websiteBounds.width, 1280, 'Website view gets full width');
+      assert.equal(defaultLayout.websiteBounds.height, 726, 'Website view gets 800 - 74 = 726px height');
+
+      // Distraction-free mode: UI view collapsed to 4px trigger strip
+      const distractionFreeLayout = calculateLayerBounds({
+        windowWidth,
+        windowHeight,
+        overlayOpen: false,
+        scratchpadOpen: false,
+        distractionFree: true
+      });
+      assert.equal(distractionFreeLayout.uiBounds.height, 4, 'UI view collapses to 4px strip in distraction-free mode');
+      assert.equal(distractionFreeLayout.websiteBounds.y, 0);
+      assert.equal(distractionFreeLayout.websiteBounds.height, 800);
 
       // Overlay open (Omnibar/Find/Cert banner): UI covers full viewport
       const overlayActive = calculateLayerBounds({
@@ -78,7 +92,7 @@ describe('End-to-End Browser Lifecycle Integration Pipeline', () => {
       assert.equal(scratchpadActive.actualDrawerWidth, 420);
       assert.equal(scratchpadActive.websiteBounds.width, 860, 'Website view is shrunk horizontally (1280 - 420 = 860)');
       assert.equal(scratchpadActive.websiteBounds.x, 0);
-      assert.equal(scratchpadActive.websiteBounds.height, 800);
+      assert.equal(scratchpadActive.websiteBounds.height, 726);
 
       // Toggle drawer closed again
       const restored = calculateLayerBounds({

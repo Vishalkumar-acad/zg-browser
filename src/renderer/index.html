@@ -6,37 +6,53 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
   <title>Zero-Gravity Browser</title>
   <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/chrome.css">
+  <link rel="stylesheet" href="styles/overlays.css">
+  <link rel="stylesheet" href="styles/drawer.css">
 </head>
 <body class="zg-theme-dark">
-  <!-- Top 4px hover trigger zone -->
-  <div id="hover-trigger" class="hover-trigger" title="Hover or press Ctrl/Cmd+L to open Omnibar"></div>
+  <!-- Top 4px hover trigger zone (active only when distraction-free mode is enabled) -->
+  <div id="hover-trigger" class="hover-trigger" title="Hover or press Ctrl/Cmd+L to open Omnibar" hidden></div>
+
+  <!-- Persistent Top Browser Chrome (Dual-Layer Top Bar: Height 74px) -->
+  <header id="browser-chrome" class="browser-chrome">
+    <!-- Top Row: Tab Strip & Utility Controls -->
+    <div class="chrome-tabs-row">
+      <div id="tabstrip-container" class="tabstrip-container">
+        <!-- Rendered dynamically -->
+        <button id="btn-new-tab" class="new-tab-btn" title="New Tab (Ctrl/Cmd+T)">+</button>
+      </div>
+      <div class="chrome-actions">
+        <button id="btn-distraction-free" class="zg-btn-icon" title="Toggle Distraction-Free (Ctrl+Shift+D)">👁️</button>
+        <button id="btn-scratchpad-toggle" class="zg-btn-icon" title="Toggle Scratchpad (Ctrl+Shift+E)">📝</button>
+        <button id="btn-settings-toggle" class="zg-btn-icon" title="Settings (Ctrl+,)">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Bottom Row: Navigation, Omnibar / Address Bar & Tools -->
+    <div class="chrome-nav-row">
+      <div class="nav-btn-group">
+        <button id="nav-back-btn" class="zg-btn-icon nav-action-btn" title="Back" disabled>◀</button>
+        <button id="nav-forward-btn" class="zg-btn-icon nav-action-btn" title="Forward" disabled>▶</button>
+        <button id="nav-reload-btn" class="zg-btn-icon nav-action-btn" title="Reload (Ctrl+R)">↻</button>
+      </div>
+      <div class="omnibar-bar" id="omnibar-bar">
+        <span id="omnibar-security-badge" class="omnibar-security-badge" title="Security Status">🔒</span>
+        <input type="text" id="omnibar-input" class="omnibar-input" placeholder="Search or enter web address..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="nav-tools-group">
+        <button id="privacy-badge" class="zg-btn-icon privacy-badge-btn" title="Tracker Protection">
+          <span>🛡️</span>
+          <span id="tracker-blocked-count" class="privacy-badge-count">0</span>
+        </button>
+        <button id="btn-history-toggle" class="zg-btn-icon" title="History (Ctrl+H)">🕒</button>
+        <button id="btn-palette-toggle" class="zg-btn-icon" title="Commands (Ctrl+K)">⌘</button>
+      </div>
+    </div>
+  </header>
 
   <!-- Floating Overlays Container (Managed by Dual-Layer Bounds) -->
   <div id="overlays-root" class="overlays-root" hidden>
-    
-    <!-- Floating Tabstrip Overlay -->
-    <div id="overlay-tabstrip" class="overlay-panel" hidden>
-      <div id="tabstrip-container" class="tabstrip-container">
-        <!-- Rendered by tab-strip.js -->
-        <button id="btn-new-tab" class="new-tab-btn" title="New Tab (Ctrl/Cmd+T)">+</button>
-      </div>
-    </div>
-
-    <!-- Omnibar Overlay -->
-    <div id="overlay-omnibar" class="overlay-panel" hidden>
-      <div class="omnibar-overlay">
-        <div class="omnibar-row">
-          <span id="omnibar-security-badge" class="omnibar-security-badge">🔒</span>
-          <input type="text" id="omnibar-input" class="omnibar-input" placeholder="Search with DuckDuckGo or enter URL..." autocomplete="off" spellcheck="false">
-        </div>
-        <div class="omnibar-hints">
-          <span>⏎ Navigate / Search</span>
-          <span>Esc Dismiss</span>
-          <span>Ctrl+T New Tab</span>
-          <span>Ctrl+K Commands</span>
-        </div>
-      </div>
-    </div>
 
     <!-- Command Palette Overlay -->
     <div id="overlay-command-palette" class="overlay-panel" hidden>
@@ -62,6 +78,10 @@
           <li class="command-item" data-action="open-settings">
             <span>Settings</span>
             <span class="command-shortcut">Ctrl+,</span>
+          </li>
+          <li class="command-item" data-action="open-about">
+            <span>About & Credits</span>
+            <span class="command-shortcut">zg://about</span>
           </li>
           <li class="command-item" data-action="toggle-distraction-free">
             <span>Toggle Distraction-Free UI</span>
@@ -94,39 +114,185 @@
           </div>
         </div>
         <ul id="history-list" class="panel-list">
-          <!-- Rendered by history-panel.js -->
+          <!-- Rendered dynamically -->
         </ul>
       </div>
     </div>
 
-    <!-- Settings Panel -->
+    <!-- Comprehensive Settings & About Panel -->
     <div id="overlay-settings-panel" class="overlay-panel" hidden>
-      <div class="settings-panel">
+      <div class="settings-modal">
         <div class="panel-header">
-          <span class="panel-title">Settings</span>
+          <div class="settings-header-title">
+            <span class="panel-title">Zero-Gravity Settings</span>
+          </div>
           <button id="settings-close-btn" class="zg-btn-icon">✕</button>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
-          <label style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Theme:</span>
-            <select id="settings-theme-select" class="zg-btn">
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="system">System</option>
-            </select>
-          </label>
-          <label style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Default Search Engine:</span>
-            <select id="settings-search-select" class="zg-btn">
-              <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
-              <option value="https://www.google.com/search?q=">Google</option>
-            </select>
-          </label>
-          <label style="display: flex; justify-content: space-between; align-items: center;">
-            <span>Tracker Blocking:</span>
-            <input type="checkbox" id="settings-tracker-check" checked>
-          </label>
-        </div>
+
+        <!-- Settings Tabs -->
+        <nav class="settings-nav-tabs">
+          <button class="settings-tab-btn active" data-tab="general">General & Search</button>
+          <button class="settings-tab-btn" data-tab="privacy">Privacy & Isolation</button>
+          <button class="settings-tab-btn" data-tab="vault">Scratchpad & Vault</button>
+          <button class="settings-tab-btn" data-tab="about">About & Credits</button>
+        </nav>
+
+        <!-- Tab 1: General & Search -->
+        <section id="settings-tab-general" class="settings-tab-content">
+          <div class="settings-group">
+            <label class="settings-field">
+              <span class="field-label">Theme</span>
+              <select id="settings-theme-select" class="zg-btn" style="width: 100%;">
+                <option value="dark">Dark Theme</option>
+                <option value="light">Light Theme</option>
+                <option value="system">System Default</option>
+              </select>
+            </label>
+
+            <label class="settings-field">
+              <span class="field-label">Home / New Tab URL</span>
+              <input type="text" id="settings-newtab-input" class="zg-settings-input" placeholder="about:blank">
+            </label>
+
+            <label class="settings-field">
+              <span class="field-label">Default Search Engine</span>
+              <select id="settings-search-select" class="zg-btn" style="width: 100%;">
+                <option value="duckduckgo">DuckDuckGo (Default, Private)</option>
+                <option value="google">Google</option>
+                <option value="brave">Brave Search</option>
+                <option value="startpage">Startpage</option>
+                <option value="custom">Custom Search Engine (%s URL)</option>
+              </select>
+            </label>
+
+            <div id="settings-custom-search-container" class="settings-field" hidden>
+              <span class="field-label">Custom Search URL Template</span>
+              <input type="text" id="settings-custom-search-input" class="zg-settings-input" placeholder="https://example.com/search?q=%s">
+              <span class="field-hint">Use %s where the query belongs (e.g. https://kagi.com/search?q=%s)</span>
+            </div>
+
+            <button id="settings-save-general-btn" class="zg-btn zg-btn-primary" style="margin-top: 8px; align-self: flex-start;">Save General Settings</button>
+          </div>
+        </section>
+
+        <!-- Tab 2: Privacy & Isolation -->
+        <section id="settings-tab-privacy" class="settings-tab-content" hidden>
+          <div class="settings-group">
+            <div class="settings-row-check">
+              <div>
+                <strong>Network Tracker & Ad Blocking</strong>
+                <p class="field-hint">Intersects network requests against blocklist.json before leaving process</p>
+              </div>
+              <input type="checkbox" id="settings-tracker-check" checked>
+            </div>
+
+            <div class="settings-subgroup">
+              <strong>Per-Site Tracker Allowlist</strong>
+              <p class="field-hint">Sites exempt from tracker blocking (User allowlist precedence)</p>
+              <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <input type="text" id="settings-allowlist-input" class="zg-settings-input" placeholder="e.g. analytics.partner.com" style="flex: 1;">
+                <button id="settings-allowlist-add-btn" class="zg-btn zg-btn-primary">Add Domain</button>
+              </div>
+              <ul id="settings-allowlist-list" class="allowlist-chip-list">
+                <!-- Dynamically rendered -->
+              </ul>
+            </div>
+
+            <div class="settings-subgroup">
+              <strong>Browsing Data & Cookies</strong>
+              <p class="field-hint">Clears cache, cookies, and local storage in persistent session</p>
+              <button id="settings-clear-data-btn" class="zg-btn" style="color: #fca5a5; border-color: #ef4444; margin-top: 6px; align-self: flex-start;">Clear All Browsing Data</button>
+            </div>
+
+            <div class="settings-subgroup">
+              <strong>Fail-Closed Security Invariants</strong>
+              <div class="security-badges-grid">
+                <div class="security-badge-item">
+                  <span class="status-indicator-dot green"></span>
+                  <div>
+                    <div style="font-weight: 600;">TLS Fail-Closed</div>
+                    <div class="badge-desc">Zero certificate error bypass; strict abort</div>
+                  </div>
+                </div>
+                <div class="security-badge-item">
+                  <span class="status-indicator-dot green"></span>
+                  <div>
+                    <div style="font-weight: 600;">Default-Deny Permissions</div>
+                    <div class="badge-desc">Sensors, camera, microphone denied by default</div>
+                  </div>
+                </div>
+                <div class="security-badge-item">
+                  <span class="status-indicator-dot green"></span>
+                  <div>
+                    <div style="font-weight: 600;">Full Process Sandboxing</div>
+                    <div class="badge-desc">contextIsolation: ON, nodeIntegration: OFF, sandbox: ON</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 3: Scratchpad & GitHub Vault -->
+        <section id="settings-tab-vault" class="settings-tab-content" hidden>
+          <div class="settings-group">
+            <div class="settings-subgroup">
+              <strong>Scratchpad Backup & Recovery</strong>
+              <p class="field-hint">Export or restore your scratchpad notes and code snippets</p>
+              <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button id="settings-export-json-btn" class="zg-btn">Export as JSON</button>
+                <button id="settings-export-md-btn" class="zg-btn">Export as Markdown</button>
+              </div>
+            </div>
+
+            <div class="settings-subgroup">
+              <strong>GitHub Vault Integration (.zg-vault/)</strong>
+              <p class="field-hint">Confined file-level synchronization to user repository</p>
+              <label class="settings-field" style="margin-top: 8px;">
+                <span class="field-label">Target Repository (owner/repo)</span>
+                <input type="text" id="settings-vault-repo-input" class="zg-settings-input" placeholder="e.g. username/notes-vault">
+              </label>
+              <div class="vault-status-box" style="margin-top: 8px;">
+                <div><strong>Vault Sandbox:</strong> <code>.zg-vault/</code> strictly enforced</div>
+                <div><strong>SafeStorage Status:</strong> <span id="settings-safestorage-status">Checking...</span></div>
+                <div><strong>Sync Status:</strong> <span id="settings-vault-sync-status">Local Only</span></div>
+              </div>
+              <button id="settings-save-vault-btn" class="zg-btn zg-btn-primary" style="margin-top: 8px; align-self: flex-start;">Save Vault Settings</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 4: About & Credits -->
+        <section id="settings-tab-about" class="settings-tab-content" hidden>
+          <div class="settings-group">
+            <div class="about-hero-box">
+              <h3 style="color: #fff; font-size: 18px; margin-bottom: 2px;">Zero-Gravity Browser</h3>
+              <p style="color: var(--zg-text-secondary); font-size: 12px; margin-bottom: 10px;">Developer-Centric Local-First Architecture (Blueprint v2.3)</p>
+              <div class="version-tags-row">
+                <span class="version-tag" id="about-app-version">v0.1.0</span>
+                <span class="version-tag" id="about-electron-version">Electron --</span>
+                <span class="version-tag" id="about-chrome-version">Chromium --</span>
+                <span class="version-tag" id="about-node-version">Node.js --</span>
+              </div>
+            </div>
+
+            <div class="settings-subgroup">
+              <strong>Open-Source Credits & Used Components</strong>
+              <div class="credits-list-container" id="about-credits-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div class="settings-subgroup">
+              <strong>Project & License</strong>
+              <p style="font-size: 12px; color: var(--zg-text-secondary); line-height: 1.5;">
+                Zero-Gravity Browser is authored by Vishal Kumar under the MIT License.<br>
+                Repository: <a href="https://github.com/Vishalkumar-acad/zg-browser" target="_blank" style="color: var(--zg-accent); text-decoration: none;">github.com/Vishalkumar-acad/zg-browser</a>
+              </p>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
 
@@ -138,7 +304,7 @@
           <button id="download-bar-close-btn" class="zg-btn-icon">✕</button>
         </div>
         <div id="download-list">
-          <!-- Rendered by download-bar.js -->
+          <!-- Rendered dynamically -->
         </div>
       </div>
     </div>

@@ -133,6 +133,7 @@ if (!gotTheLock) {
       historyManager,
       privacyManager,
       storageManager,
+      secretsManager,
       githubService,
       sendToTrustedUI
     });

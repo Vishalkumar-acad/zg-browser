@@ -6,26 +6,37 @@
  * Communicates strictly via Preload contextBridge window.zgAPI
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initApp() {
   const api = window.zgAPI;
   if (!api) {
     console.warn('zgAPI not available');
     return;
   }
 
-  // --- DOM Elements ---
+  // --- DOM Elements: Browser Chrome (Persistent Top Bar) ---
+  const browserChrome = document.getElementById('browser-chrome');
   const hoverTrigger = document.getElementById('hover-trigger');
   const overlaysRoot = document.getElementById('overlays-root');
 
-  // Overlays
-  const overlayTabstrip = document.getElementById('overlay-tabstrip');
+  // Tabs Row
   const tabstripContainer = document.getElementById('tabstrip-container');
   const btnNewTab = document.getElementById('btn-new-tab');
+  const btnDistractionFree = document.getElementById('btn-distraction-free');
+  const btnScratchpadToggle = document.getElementById('btn-scratchpad-toggle');
+  const btnSettingsToggle = document.getElementById('btn-settings-toggle');
 
-  const overlayOmnibar = document.getElementById('overlay-omnibar');
+  // Navigation & Address Bar Row
+  const navBackBtn = document.getElementById('nav-back-btn');
+  const navForwardBtn = document.getElementById('nav-forward-btn');
+  const navReloadBtn = document.getElementById('nav-reload-btn');
   const omnibarInput = document.getElementById('omnibar-input');
   const omnibarSecurityBadge = document.getElementById('omnibar-security-badge');
+  const privacyBadge = document.getElementById('privacy-badge');
+  const trackerBlockedCount = document.getElementById('tracker-blocked-count');
+  const btnHistoryToggle = document.getElementById('btn-history-toggle');
+  const btnPaletteToggle = document.getElementById('btn-palette-toggle');
 
+  // --- DOM Elements: Overlays ---
   const overlayCommandPalette = document.getElementById('overlay-command-palette');
   const commandInput = document.getElementById('command-input');
   const commandList = document.getElementById('command-list');
@@ -43,12 +54,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   const historyClearAllBtn = document.getElementById('history-clear-all-btn');
   const historyCloseBtn = document.getElementById('history-close-btn');
 
+  // Settings Modal Elements
   const overlaySettingsPanel = document.getElementById('overlay-settings-panel');
-  const settingsThemeSelect = document.getElementById('settings-theme-select');
-  const settingsSearchSelect = document.getElementById('settings-search-select');
-  const settingsTrackerCheck = document.getElementById('settings-tracker-check');
   const settingsCloseBtn = document.getElementById('settings-close-btn');
+  const settingsTabButtons = document.querySelectorAll('.settings-tab-btn');
+  const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
+  // Settings Tab 1: General
+  const settingsThemeSelect = document.getElementById('settings-theme-select');
+  const settingsNewTabInput = document.getElementById('settings-newtab-input');
+  const settingsSearchSelect = document.getElementById('settings-search-select');
+  const settingsCustomSearchContainer = document.getElementById('settings-custom-search-container');
+  const settingsCustomSearchInput = document.getElementById('settings-custom-search-input');
+  const settingsSaveGeneralBtn = document.getElementById('settings-save-general-btn');
+
+  // Settings Tab 2: Privacy
+  const settingsTrackerCheck = document.getElementById('settings-tracker-check');
+  const settingsAllowlistInput = document.getElementById('settings-allowlist-input');
+  const settingsAllowlistAddBtn = document.getElementById('settings-allowlist-add-btn');
+  const settingsAllowlistList = document.getElementById('settings-allowlist-list');
+  const settingsClearDataBtn = document.getElementById('settings-clear-data-btn');
+
+  // Settings Tab 3: Vault
+  const settingsExportJsonBtn = document.getElementById('settings-export-json-btn');
+  const settingsExportMdBtn = document.getElementById('settings-export-md-btn');
+  const settingsVaultRepoInput = document.getElementById('settings-vault-repo-input');
+  const settingsSaveVaultBtn = document.getElementById('settings-save-vault-btn');
+  const settingsSafeStorageStatus = document.getElementById('settings-safestorage-status');
+  const settingsVaultSyncStatus = document.getElementById('settings-vault-sync-status');
+
+  // Settings Tab 4: About
+  const aboutAppVersion = document.getElementById('about-app-version');
+  const aboutElectronVersion = document.getElementById('about-electron-version');
+  const aboutChromeVersion = document.getElementById('about-chrome-version');
+  const aboutNodeVersion = document.getElementById('about-node-version');
+  const aboutCreditsList = document.getElementById('about-credits-list');
+
+  // Downloads, Cert Error, Permissions
   const overlayDownloadBar = document.getElementById('overlay-download-bar');
   const downloadList = document.getElementById('download-list');
   const downloadBarCloseBtn = document.getElementById('download-bar-close-btn');
@@ -63,32 +105,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const permissionAllowBtn = document.getElementById('permission-allow-btn');
   const permissionDenyBtn = document.getElementById('permission-deny-btn');
 
+  // Scratchpad Drawer
   const scratchpadDrawer = document.getElementById('scratchpad-drawer');
   const drawerCloseBtn = document.getElementById('drawer-close-btn');
   const scratchpadEditor = document.getElementById('scratchpad-editor');
   const scratchpadStatus = document.getElementById('scratchpad-status');
 
   // --- State ---
-  let activeOverlay = null; // 'omnibar' | 'tabstrip' | 'command-palette' | 'find-bar' | 'history' | 'settings' | 'downloads' | 'permission' | 'cert-error'
+  let activeOverlay = null; // 'command-palette' | 'find-bar' | 'history' | 'settings' | 'downloads' | 'permission' | 'cert-error'
   let scratchpadOpen = false;
+  let distractionFree = false;
   let activeTabId = null;
   let activePermissionRequestId = null;
 
-  // --- Overlay Coordinator (Notifies Main to expand/collapse WebContentsView bounds) ---
-  async function showOverlay(overlayId) {
-    // Hide previous
-    hideAllOverlays(false);
+  // --- Overlay Coordinator ---
+  async function showOverlay(overlayId, extraParam) {
+    if (activeOverlay === overlayId) {
+      await hideAllOverlays();
+      return;
+    }
 
+    // Expand bounds over website view in Main FIRST so full modal is visible
+    try {
+      await api.ui.toggleOverlay(overlayId, true);
+    } catch (err) {
+      console.warn('api.ui.toggleOverlay error:', err);
+    }
+
+    hideAllOverlays(false);
     activeOverlay = overlayId;
     overlaysRoot.hidden = false;
 
-    if (overlayId === 'omnibar') {
-      overlayOmnibar.hidden = false;
-      omnibarInput.focus();
-      omnibarInput.select();
-    } else if (overlayId === 'tabstrip') {
-      overlayTabstrip.hidden = false;
-    } else if (overlayId === 'command-palette') {
+    if (overlayId === 'command-palette') {
       overlayCommandPalette.hidden = false;
       commandInput.value = '';
       commandInput.focus();
@@ -99,10 +147,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       findInput.select();
     } else if (overlayId === 'history') {
       overlayHistoryPanel.hidden = false;
-      await loadHistory();
+      try { await loadHistory(); } catch {}
     } else if (overlayId === 'settings') {
       overlaySettingsPanel.hidden = false;
-      await loadSettings();
+      if (extraParam) {
+        switchSettingsTab(extraParam);
+      }
+      try { await loadSettings(); } catch {}
+      try { await loadAboutInfo(); } catch {}
+      try { await loadAllowlist(); } catch {}
     } else if (overlayId === 'downloads') {
       overlayDownloadBar.hidden = false;
     } else if (overlayId === 'cert-error') {
@@ -110,14 +163,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (overlayId === 'permission') {
       overlayPermissionPrompt.hidden = false;
     }
-
-    // Inform Main process to expand bounds over website view
-    await api.ui.toggleOverlay(overlayId, true);
   }
 
   async function hideAllOverlays(notifyMain = true) {
-    overlayOmnibar.hidden = true;
-    overlayTabstrip.hidden = true;
     overlayCommandPalette.hidden = true;
     overlayFindBar.hidden = true;
     overlayHistoryPanel.hidden = true;
@@ -134,7 +182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     activeOverlay = null;
 
     if (notifyMain && prev) {
-      // Collapse UI view back to 4px strip so website gets mouse events
       await api.ui.toggleOverlay(prev, false);
     }
   }
@@ -149,26 +196,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     await api.ui.toggleScratchpad(scratchpadOpen);
   }
 
-  // --- 4px Top Hover Trigger ---
+  // --- Distraction-Free UI Mode Coordinator ---
+  async function toggleDistractionFreeMode() {
+    distractionFree = !distractionFree;
+    browserChrome.hidden = distractionFree;
+    hoverTrigger.hidden = !distractionFree;
+    await api.ui.toggleDistractionFree(distractionFree);
+  }
+
+  // 4px top hover trigger when distraction-free is active
   hoverTrigger.addEventListener('mouseenter', () => {
-    if (!activeOverlay) {
-      showOverlay('omnibar');
+    if (distractionFree) {
+      browserChrome.hidden = false;
     }
+  });
+
+  browserChrome.addEventListener('mouseleave', () => {
+    if (distractionFree && !activeOverlay) {
+      browserChrome.hidden = true;
+    }
+  });
+
+  // --- Wire Top Chrome Buttons ---
+  btnDistractionFree.addEventListener('click', toggleDistractionFreeMode);
+  btnScratchpadToggle.addEventListener('click', () => toggleScratchpad());
+  btnSettingsToggle.addEventListener('click', () => showOverlay('settings'));
+  btnHistoryToggle.addEventListener('click', () => showOverlay('history'));
+  btnPaletteToggle.addEventListener('click', () => showOverlay('command-palette'));
+
+  privacyBadge.addEventListener('click', () => {
+    showOverlay('settings', 'privacy');
+  });
+
+  navBackBtn.addEventListener('click', async () => {
+    await api.nav.back('active');
+  });
+
+  navForwardBtn.addEventListener('click', async () => {
+    await api.nav.forward('active');
+  });
+
+  navReloadBtn.addEventListener('click', async () => {
+    await api.nav.reload('active');
   });
 
   drawerCloseBtn.addEventListener('click', () => toggleScratchpad(false));
 
-  // --- Tab Management ---
+  // --- Tabstrip Management ---
   btnNewTab.addEventListener('click', async () => {
     await api.tabs.create();
-    showOverlay('omnibar');
+    omnibarInput.focus();
+    omnibarInput.select();
   });
 
   api.tabs.onTabsUpdated((data) => {
     if (!data || !data.tabs) return;
     activeTabId = data.activeId;
 
-    // Preserve new tab button
     tabstripContainer.innerHTML = '';
 
     data.tabs.forEach((tab) => {
@@ -207,32 +291,109 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     tabstripContainer.appendChild(btnNewTab);
+
+    // Sync active tab URL and navigation buttons with omnibar
+    const activeTab = data.tabs.find((t) => t.id === data.activeId);
+    if (activeTab && omnibarInput && document.activeElement !== omnibarInput) {
+      omnibarInput.value = (activeTab.url && activeTab.url !== 'about:blank') ? activeTab.url : '';
+      if (activeTab.url && activeTab.url.startsWith('https://')) {
+        omnibarSecurityBadge.textContent = '🔒';
+      } else if (activeTab.url && activeTab.url.startsWith('zg://')) {
+        omnibarSecurityBadge.textContent = '🛡️';
+      } else {
+        omnibarSecurityBadge.textContent = '🌐';
+      }
+      navBackBtn.disabled = !activeTab.canGoBack;
+      navForwardBtn.disabled = !activeTab.canGoForward;
+    }
+
+    // Update tracker blocked count for active tab
+    updateTrackerStats();
   });
 
-  // --- Navigation Updates ---
+  // --- Navigation & Omnibar Sync ---
   api.nav.onNavUpdated((data) => {
-    if (data.tabId === activeTabId && omnibarInput && document.activeElement !== omnibarInput) {
-      omnibarInput.value = (data.url && data.url !== 'about:blank') ? data.url : '';
-      omnibarSecurityBadge.textContent = data.url && data.url.startsWith('https://') ? '🔒' : '🌐';
+    if (data.tabId === activeTabId) {
+      if (document.activeElement !== omnibarInput) {
+        omnibarInput.value = (data.url && data.url !== 'about:blank') ? data.url : '';
+      }
+
+      if (data.url && data.url.startsWith('https://')) {
+        omnibarSecurityBadge.textContent = '🔒';
+      } else if (data.url && data.url.startsWith('zg://')) {
+        omnibarSecurityBadge.textContent = '🛡️';
+      } else {
+        omnibarSecurityBadge.textContent = '🌐';
+      }
+
+      navBackBtn.disabled = !data.canGoBack;
+      navForwardBtn.disabled = !data.canGoForward;
+
+      updateTrackerStats();
     }
   });
 
-  // --- Omnibar Navigation ---
+  async function updateTrackerStats() {
+    try {
+      const res = await api.privacy.getBlockedStats('active');
+      const stats = (res && res.data) || res;
+      if (stats && typeof stats.count === 'number') {
+        trackerBlockedCount.textContent = String(stats.count);
+      }
+    } catch {}
+  }
+
+  // --- Omnibar Search & Navigation Execution ---
   omnibarInput.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
-      const query = omnibarInput.value.trim();
-      if (!query) return;
+      const raw = omnibarInput.value.trim();
+      if (!raw) return;
 
-      let targetUrl = query;
-      if (!query.startsWith('http://') && !query.startsWith('https://') && !query.startsWith('zg://')) {
-        if (query.includes('.') && !query.includes(' ')) {
-          targetUrl = 'https://' + query;
+      // Handle internal zg:// routes directly
+      if (raw === 'zg://settings') {
+        showOverlay('settings', 'general');
+        return;
+      }
+      if (raw === 'zg://about') {
+        showOverlay('settings', 'about');
+        return;
+      }
+      if (raw === 'zg://history') {
+        showOverlay('history');
+        return;
+      }
+
+      let targetUrl = raw;
+
+      if (!raw.startsWith('http://') && !raw.startsWith('https://') && !raw.startsWith('zg://')) {
+        if (raw.includes('.') && !raw.includes(' ') && !raw.startsWith('?')) {
+          targetUrl = 'https://' + raw;
         } else {
-          // Use search engine
-          const settings = await api.settings.get();
-          const searchBase = (settings && settings.data && settings.data.settings && settings.data.settings.searchEngine)
-            || 'https://duckduckgo.com/?q=';
-          targetUrl = searchBase + encodeURIComponent(query);
+          // Resolve search query with user-selected search engine
+          const settingsRes = await api.settings.get();
+          const settingsData = (settingsRes && settingsRes.data) || settingsRes || {};
+          const settings = settingsData.settings || {};
+          const engine = (settings.searchEngine || 'duckduckgo').toLowerCase();
+          const customUrl = settings.customSearchUrl || '';
+
+          if (engine === 'custom' && customUrl) {
+            targetUrl = customUrl.includes('%s')
+              ? customUrl.replace(/%s/g, encodeURIComponent(raw))
+              : customUrl + (customUrl.includes('?') ? '&q=' : '?q=') + encodeURIComponent(raw);
+          } else if (engine === 'google') {
+            targetUrl = `https://www.google.com/search?q=${encodeURIComponent(raw)}`;
+          } else if (engine === 'brave') {
+            targetUrl = `https://search.brave.com/search?q=${encodeURIComponent(raw)}`;
+          } else if (engine === 'startpage') {
+            targetUrl = `https://www.startpage.com/sp/search?query=${encodeURIComponent(raw)}`;
+          } else if (engine.startsWith('http://') || engine.startsWith('https://')) {
+            targetUrl = engine.includes('%s')
+              ? engine.replace(/%s/g, encodeURIComponent(raw))
+              : engine + encodeURIComponent(raw);
+          } else {
+            // Default: DuckDuckGo
+            targetUrl = `https://duckduckgo.com/?q=${encodeURIComponent(raw)}`;
+          }
         }
       }
 
@@ -296,7 +457,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (action === 'new-tab') {
       await api.tabs.create();
-      showOverlay('omnibar');
+      omnibarInput.focus();
+      omnibarInput.select();
     } else if (action === 'close-tab') {
       if (activeTabId) await api.tabs.close(activeTabId);
     } else if (action === 'open-scratchpad') {
@@ -304,9 +466,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (action === 'open-history') {
       showOverlay('history');
     } else if (action === 'open-settings') {
-      showOverlay('settings');
+      showOverlay('settings', 'general');
+    } else if (action === 'open-about') {
+      showOverlay('settings', 'about');
     } else if (action === 'toggle-distraction-free') {
-      await api.ui.toggleDistractionFree();
+      await toggleDistractionFreeMode();
     }
   });
 
@@ -357,30 +521,183 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   historyCloseBtn.addEventListener('click', () => hideAllOverlays());
 
-  // --- Settings Panel ---
-  async function loadSettings() {
-    const res = await api.settings.get();
-    if (res && res.ok && res.data && res.data.settings) {
-      const s = res.data.settings;
-      if (s.theme) settingsThemeSelect.value = s.theme;
-      if (s.searchEngine) settingsSearchSelect.value = s.searchEngine;
-      if (typeof s.trackerBlockingEnabled === 'boolean') settingsTrackerCheck.checked = s.trackerBlockingEnabled;
-    }
+  // --- Settings Modal Tabs Navigation ---
+  function switchSettingsTab(tabName) {
+    settingsTabButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+    });
+    settingsTabContents.forEach((sec) => {
+      sec.hidden = sec.id !== `settings-tab-${tabName}`;
+    });
   }
 
-  settingsThemeSelect.addEventListener('change', async () => {
-    await api.settings.update({ theme: settingsThemeSelect.value });
-  });
-
-  settingsSearchSelect.addEventListener('change', async () => {
-    await api.settings.update({ searchEngine: settingsSearchSelect.value });
-  });
-
-  settingsTrackerCheck.addEventListener('change', async () => {
-    await api.settings.update({ trackerBlockingEnabled: settingsTrackerCheck.checked });
+  settingsTabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-tab');
+      switchSettingsTab(tabName);
+    });
   });
 
   settingsCloseBtn.addEventListener('click', () => hideAllOverlays());
+
+  // --- Settings Tab 1: General & Search ---
+  async function loadSettings() {
+    const res = await api.settings.get();
+    const data = (res && res.data) || res;
+    if (data && data.settings) {
+      const s = data.settings;
+      if (s.theme) settingsThemeSelect.value = s.theme;
+      if (s.newTabUrl) settingsNewTabInput.value = s.newTabUrl;
+
+      const engine = s.searchEngine || 'duckduckgo';
+      settingsSearchSelect.value = ['duckduckgo', 'google', 'brave', 'startpage', 'custom'].includes(engine)
+        ? engine
+        : 'custom';
+
+      if (s.customSearchUrl) {
+        settingsCustomSearchInput.value = s.customSearchUrl;
+      }
+      settingsCustomSearchContainer.hidden = settingsSearchSelect.value !== 'custom';
+
+      if (typeof s.trackerBlockingEnabled === 'boolean') {
+        settingsTrackerCheck.checked = s.trackerBlockingEnabled;
+      }
+
+      if (s.githubRepo) {
+        settingsVaultRepoInput.value = s.githubRepo;
+        settingsVaultSyncStatus.textContent = `Connected (${s.githubRepo})`;
+      }
+    }
+  }
+
+  settingsSearchSelect.addEventListener('change', () => {
+    settingsCustomSearchContainer.hidden = settingsSearchSelect.value !== 'custom';
+  });
+
+  settingsSaveGeneralBtn.addEventListener('click', async () => {
+    const patch = {
+      theme: settingsThemeSelect.value,
+      newTabUrl: settingsNewTabInput.value.trim() || 'about:blank',
+      searchEngine: settingsSearchSelect.value
+    };
+
+    if (settingsSearchSelect.value === 'custom') {
+      patch.customSearchUrl = settingsCustomSearchInput.value.trim();
+    }
+
+    await api.settings.update(patch);
+    settingsSaveGeneralBtn.textContent = 'Saved!';
+    setTimeout(() => {
+      settingsSaveGeneralBtn.textContent = 'Save General Settings';
+    }, 1500);
+  });
+
+  // --- Settings Tab 2: Privacy & Allowlist ---
+  settingsTrackerCheck.addEventListener('change', async () => {
+    await api.privacy.toggleTrackerBlocking(settingsTrackerCheck.checked);
+    await api.settings.update({ trackerBlockingEnabled: settingsTrackerCheck.checked });
+  });
+
+  async function loadAllowlist() {
+    settingsAllowlistList.innerHTML = '';
+    try {
+      const res = await api.privacy.getAllowlist();
+      const data = (res && res.data) || res;
+      if (data && Array.isArray(data.domains)) {
+        data.domains.forEach((dom) => {
+          const chip = document.createElement('li');
+          chip.className = 'allowlist-chip';
+          chip.innerHTML = `
+            <span>${dom}</span>
+            <button class="allowlist-chip-remove" title="Remove allowlist exception">✕</button>
+          `;
+          chip.querySelector('.allowlist-chip-remove').addEventListener('click', async () => {
+            await api.privacy.allowlistSite(dom, false);
+            chip.remove();
+          });
+          settingsAllowlistList.appendChild(chip);
+        });
+      }
+    } catch {}
+  }
+
+  settingsAllowlistAddBtn.addEventListener('click', async () => {
+    const domain = settingsAllowlistInput.value.trim().toLowerCase();
+    if (domain) {
+      await api.privacy.allowlistSite(domain, true);
+      settingsAllowlistInput.value = '';
+      await loadAllowlist();
+    }
+  });
+
+  settingsClearDataBtn.addEventListener('click', async () => {
+    await api.privacy.clearSiteData('*');
+    settingsClearDataBtn.textContent = 'Cleared!';
+    setTimeout(() => {
+      settingsClearDataBtn.textContent = 'Clear All Browsing Data';
+    }, 1500);
+  });
+
+  // --- Settings Tab 3: Scratchpad & Vault ---
+  settingsExportJsonBtn.addEventListener('click', async () => {
+    await api.storage.export('json');
+  });
+
+  settingsExportMdBtn.addEventListener('click', async () => {
+    await api.storage.export('markdown');
+  });
+
+  settingsSaveVaultBtn.addEventListener('click', async () => {
+    const repo = settingsVaultRepoInput.value.trim();
+    if (repo) {
+      await api.settings.update({ githubRepo: repo });
+      settingsVaultSyncStatus.textContent = `Configured (${repo})`;
+      settingsSaveVaultBtn.textContent = 'Saved!';
+      setTimeout(() => {
+        settingsSaveVaultBtn.textContent = 'Save Vault Settings';
+      }, 1500);
+    }
+  });
+
+  // --- Settings Tab 4: About & Versioning ---
+  async function loadAboutInfo() {
+    try {
+      const res = await api.system.getAbout();
+      const info = (res && res.data) || res;
+      if (info) {
+        aboutAppVersion.textContent = `v${info.version || '0.1.0'}`;
+        if (info.versions) {
+          aboutElectronVersion.textContent = `Electron ${info.versions.electron}`;
+          aboutChromeVersion.textContent = `Chromium ${info.versions.chrome}`;
+          aboutNodeVersion.textContent = `Node.js ${info.versions.node}`;
+        }
+
+        if (info.security) {
+          settingsSafeStorageStatus.textContent = info.security.safeStorageAvailable
+            ? 'Available (Encrypted OS Keyring)'
+            : 'Unavailable (Fail-Closed: Token storage refused to protect secrets)';
+        }
+
+        if (Array.isArray(info.credits)) {
+          aboutCreditsList.innerHTML = '';
+          info.credits.forEach((c) => {
+            const item = document.createElement('div');
+            item.className = 'credit-item';
+            item.innerHTML = `
+              <div>
+                <strong>${c.name}</strong>
+                <div style="font-size: 11px; color: var(--zg-text-secondary);">${c.description}</div>
+              </div>
+              <span class="credit-license">${c.license}</span>
+            `;
+            aboutCreditsList.appendChild(item);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load about info:', err);
+    }
+  }
 
   // --- Downloads ---
   downloadBarCloseBtn.addEventListener('click', () => hideAllOverlays());
@@ -443,17 +760,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const mod = isMac ? e.metaKey : e.ctrlKey;
 
-    // Cmd/Ctrl+L: Omnibar
+    // Cmd/Ctrl+L: Focus Omnibar
     if (mod && e.key.toLowerCase() === 'l') {
       e.preventDefault();
-      activeOverlay === 'omnibar' ? hideAllOverlays() : showOverlay('omnibar');
+      omnibarInput.focus();
+      omnibarInput.select();
       return;
     }
 
-    // Cmd/Ctrl+T: New Tab / Tabstrip
+    // Cmd/Ctrl+T: New Tab
     if (mod && e.key.toLowerCase() === 't') {
       e.preventDefault();
-      activeOverlay === 'tabstrip' ? hideAllOverlays() : showOverlay('tabstrip');
+      await api.tabs.create();
+      omnibarInput.focus();
+      omnibarInput.select();
+      return;
+    }
+
+    // Cmd/Ctrl+W: Close Tab
+    if (mod && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      if (activeTabId) await api.tabs.close(activeTabId);
+      return;
+    }
+
+    // Cmd/Ctrl+R: Reload
+    if (mod && e.key.toLowerCase() === 'r') {
+      e.preventDefault();
+      await api.nav.reload('active');
       return;
     }
 
@@ -492,6 +826,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Cmd/Ctrl+Shift+D: Distraction-Free Mode
+    if (mod && e.shiftKey && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      await toggleDistractionFreeMode();
+      return;
+    }
+
     // Escape: Dismiss active overlays or scratchpad
     if (e.key === 'Escape') {
       if (activeOverlay) {
@@ -503,4 +844,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

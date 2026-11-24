@@ -34,6 +34,7 @@ function registerIpcHandlers({
   historyManager,
   privacyManager,
   storageManager,
+  secretsManager,
   githubService,
   sendToTrustedUI
 }) {
@@ -376,6 +377,60 @@ function registerIpcHandlers({
         return privacyManager.getBlockedStats(targetId);
       }
       return { count: 0, domains: [] };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.PRIVACY_GET_ALLOWLIST,
+    createValidatedHandler(IPC_CHANNELS.PRIVACY_GET_ALLOWLIST, async () => {
+      if (privacyManager && typeof privacyManager.getAllowlist === 'function') {
+        return { domains: privacyManager.getAllowlist() };
+      }
+      return { domains: [] };
+    }, context)
+  );
+
+  // --- System & About Info ---
+  ipcMain.handle(
+    IPC_CHANNELS.SYSTEM_GET_ABOUT,
+    createValidatedHandler(IPC_CHANNELS.SYSTEM_GET_ABOUT, async () => {
+      let pkgVersion = '0.1.0';
+      try {
+        const pkg = require('../../package.json');
+        pkgVersion = pkg.version || '0.1.0';
+      } catch {}
+
+      return {
+        appName: 'Zero-Gravity Browser',
+        version: pkgVersion,
+        versions: {
+          electron: (process.versions && process.versions.electron) || 'unknown',
+          chrome: (process.versions && process.versions.chrome) || 'unknown',
+          node: (process.versions && process.versions.node) || 'unknown',
+          v8: (process.versions && process.versions.v8) || 'unknown'
+        },
+        platform: process.platform,
+        arch: process.arch,
+        blueprint: 'v2.3 (Fail-Closed Architecture)',
+        repository: 'https://github.com/Vishalkumar-acad/zg-browser',
+        license: 'MIT',
+        credits: [
+          { name: 'Electron', license: 'MIT', description: 'Cross-platform desktop application framework' },
+          { name: 'Chromium', license: 'BSD-3-Clause', description: 'Underlying web rendering & networking engine' },
+          { name: 'Node.js', license: 'MIT', description: 'Main process JavaScript runtime & system layer' },
+          { name: 'V8', license: 'BSD-3-Clause', description: 'High-performance JavaScript and WebAssembly engine' },
+          { name: 'Zero-Gravity Browser Core', license: 'MIT', description: 'Architectural Blueprint v2.3 authored by Vishal Kumar' }
+        ],
+        security: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+          webSecurity: true,
+          tlsFailClosed: true,
+          defaultDenyPermissions: true,
+          safeStorageAvailable: secretsManager && typeof secretsManager.isAvailable === 'function' ? secretsManager.isAvailable() : false
+        }
+      };
     }, context)
   );
 

@@ -3,12 +3,12 @@
  * Single Source of Truth: Blueprint v2.3 Section 4.6 & 5
  * 
  * Manages local user settings. Validates updates, handles default fallbacks,
- * and recovers gracefully from corrupted configurations.
+ * multi-engine search resolution, and recovers gracefully from corrupted configurations.
  */
 
 const fs = require('fs');
 const path = require('path');
-const { DEFAULT_SETTINGS } = require('../shared/constants');
+const { DEFAULT_SETTINGS, CAPS, SEARCH_ENGINES, formatSearchUrl } = require('../shared/constants');
 
 class SettingsManager {
   /**
@@ -66,6 +66,14 @@ class SettingsManager {
   }
 
   /**
+   * Formats a search query URL using current settings
+   * @param {string} query
+   */
+  formatSearchUrl(query) {
+    return formatSearchUrl(this.settings.searchEngine, query, this.settings.customSearchUrl);
+  }
+
+  /**
    * Updates settings with a validated patch
    * @param {Partial<import('../shared/constants').DEFAULT_SETTINGS>} patch
    */
@@ -74,12 +82,70 @@ class SettingsManager {
       return this.getSettings();
     }
 
-    const allowedKeys = ['theme', 'searchEngine', 'trackerBlockingEnabled', 'distractionFree', 'scratchpadWidth', 'githubRepo'];
+    const allowedKeys = [
+      'theme',
+      'searchEngine',
+      'customSearchUrl',
+      'newTabUrl',
+      'trackerBlockingEnabled',
+      'distractionFree',
+      'scratchpadWidth',
+      'githubRepo'
+    ];
 
     for (const [key, value] of Object.entries(patch)) {
-      if (allowedKeys.includes(key)) {
-        this.settings[key] = value;
+      if (!allowedKeys.includes(key)) {
+        continue;
       }
+
+      // Safe validation for customSearchUrl
+      if (key === 'customSearchUrl') {
+        if (typeof value !== 'string' || value.length > CAPS.MAX_URL_LENGTH) {
+          continue;
+        }
+        const trimmed = value.trim();
+        if (trimmed && !trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+          continue; // Must be valid http/https scheme or empty
+        }
+        this.settings.customSearchUrl = trimmed;
+        continue;
+      }
+
+      // Safe validation for newTabUrl
+      if (key === 'newTabUrl') {
+        if (typeof value !== 'string' || value.length > CAPS.MAX_URL_LENGTH) {
+          continue;
+        }
+        this.settings.newTabUrl = value.trim();
+        continue;
+      }
+
+      // Safe validation for searchEngine
+      if (key === 'searchEngine') {
+        if (typeof value !== 'string' || value.length > CAPS.MAX_URL_LENGTH) {
+          continue;
+        }
+        this.settings.searchEngine = value.trim();
+        continue;
+      }
+
+      // Safe validation for theme
+      if (key === 'theme') {
+        if (['dark', 'light', 'system'].includes(value)) {
+          this.settings.theme = value;
+        }
+        continue;
+      }
+
+      // Safe validation for scratchpadWidth
+      if (key === 'scratchpadWidth') {
+        if (typeof value === 'number' && !Number.isNaN(value)) {
+          this.settings.scratchpadWidth = value;
+        }
+        continue;
+      }
+
+      this.settings[key] = value;
     }
 
     this.save();

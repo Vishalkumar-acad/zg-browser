@@ -103,4 +103,23 @@ describe('Privacy Manager & Tracker Blocking', () => {
     assert.equal(stats.count, 1);
     assert.deepEqual(stats.domains, ['doubleclick.net']);
   });
+
+  it('manages per-site allowlist domains and returns full allowlist', () => {
+    const pm = new PrivacyManager({ blocklistPath: BLOCKLIST_PATH });
+
+    assert.deepEqual(pm.getAllowlist(), []);
+
+    pm.allowlistSite('analytics.partner.com', true);
+    pm.allowlistSite('cdn.trusted-tracker.com', true);
+
+    const list = pm.getAllowlist();
+    assert.equal(list.length, 2);
+    assert.ok(list.includes('analytics.partner.com'));
+    assert.ok(list.includes('cdn.trusted-tracker.com'));
+
+    pm.allowlistSite('analytics.partner.com', false);
+    const updated = pm.getAllowlist();
+    assert.equal(updated.length, 1);
+    assert.ok(updated.includes('cdn.trusted-tracker.com'));
+  });
 });

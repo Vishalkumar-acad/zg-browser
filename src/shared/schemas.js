@@ -17,6 +17,9 @@ function isPlainObject(obj) {
  * Validates payload size
  */
 function validatePayloadSize(payload) {
+  if (payload === undefined || payload === null) {
+    return { valid: true };
+  }
   try {
     const jsonStr = JSON.stringify(payload);
     const byteLength = Buffer.byteLength(jsonStr, 'utf8');
@@ -204,10 +207,29 @@ const SCHEMAS = {
     if (!isPlainObject(p.patch)) {
       return { valid: false, error: 'patch must be an object' };
     }
-    const allowedFields = ['theme', 'searchEngine', 'trackerBlockingEnabled', 'distractionFree', 'scratchpadWidth', 'githubRepo'];
+    const allowedFields = [
+      'theme',
+      'searchEngine',
+      'customSearchUrl',
+      'newTabUrl',
+      'trackerBlockingEnabled',
+      'distractionFree',
+      'scratchpadWidth',
+      'githubRepo'
+    ];
     for (const key of Object.keys(p.patch)) {
       if (!allowedFields.includes(key)) {
         return { valid: false, error: `Disallowed settings field: "${key}"` };
+      }
+    }
+    if (p.patch.customSearchUrl !== undefined) {
+      if (typeof p.patch.customSearchUrl !== 'string' || p.patch.customSearchUrl.length > CAPS.MAX_URL_LENGTH) {
+        return { valid: false, error: 'customSearchUrl must be a string within length limit' };
+      }
+    }
+    if (p.patch.newTabUrl !== undefined) {
+      if (typeof p.patch.newTabUrl !== 'string' || p.patch.newTabUrl.length > CAPS.MAX_URL_LENGTH) {
+        return { valid: false, error: 'newTabUrl must be a string within length limit' };
       }
     }
     return { valid: true };
@@ -452,6 +474,20 @@ const SCHEMAS = {
       return { valid: false, error: 'Path traversal not permitted' };
     }
     if (typeof p.localContent !== 'string') return { valid: false, error: 'localContent must be string' };
+    return { valid: true };
+  },
+
+  [IPC_CHANNELS.PRIVACY_GET_ALLOWLIST]: (p) => {
+    if (p !== undefined && p !== null && Object.keys(p).length > 0) {
+      return { valid: false, error: 'privacy:get-allowlist expects no parameters' };
+    }
+    return { valid: true };
+  },
+
+  [IPC_CHANNELS.SYSTEM_GET_ABOUT]: (p) => {
+    if (p !== undefined && p !== null && Object.keys(p).length > 0) {
+      return { valid: false, error: 'system:get-about expects no parameters' };
+    }
     return { valid: true };
   }
 };

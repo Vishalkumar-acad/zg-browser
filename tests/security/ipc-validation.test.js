@@ -263,5 +263,72 @@ describe('5-Step Frame-Aware IPC Validation Pipeline', () => {
       assert.equal(result.error.message.includes('ghp_1234567890abcdef12345'), false);
       assert.match(result.error.message, /\[REDACTED\]/);
     });
+
+    it('authenticates and approves system:get-about for Trusted UI', async () => {
+      const handler = createValidatedHandler(
+        IPC_CHANNELS.SYSTEM_GET_ABOUT,
+        async () => ({
+          appName: 'Zero-Gravity Browser',
+          version: '0.1.0',
+          blueprint: 'v2.3'
+        }),
+        { getTrustedUIWebContents: () => mockTrustedWebContents }
+      );
+
+      const validEvent = {
+        sender: mockTrustedWebContents,
+        senderFrame: { parent: null, url: 'zg://ui/index.html' }
+      };
+
+      const result = await handler(validEvent);
+      assert.equal(result.ok, true);
+      assert.equal(result.data.appName, 'Zero-Gravity Browser');
+      assert.equal(result.data.version, '0.1.0');
+
+      // Foreign sender must be rejected
+      const invalidEvent = {
+        sender: mockUntrustedWebContents,
+        senderFrame: { parent: null, url: 'https://evil.com' }
+      };
+      const rejected = await handler(invalidEvent);
+      assert.equal(rejected.ok, false);
+      assert.equal(rejected.error.code, 'UNAUTHORIZED_SENDER');
+    });
+
+    it('authenticates privacy:get-allowlist and validates settings:update customSearchUrl', async () => {
+      const handler = createValidatedHandler(
+        IPC_CHANNELS.PRIVACY_GET_ALLOWLIST,
+        async () => ({ domains: ['example.com'] }),
+        { getTrustedUIWebContents: () => mockTrustedWebContents }
+      );
+
+      const validEvent = {
+        sender: mockTrustedWebContents,
+        senderFrame: { parent: null, url: 'zg://ui/index.html' }
+      };
+
+      const result = await handler(validEvent);
+      assert.equal(result.ok, true);
+      assert.deepEqual(result.data.domains, ['example.com']);
+
+      // Test settings:update validation with customSearchUrl
+      const updateHandler = createValidatedHandler(
+        IPC_CHANNELS.SETTINGS_UPDATE,
+        async (p) => ({ settings: p.patch }),
+        { getTrustedUIWebContents: () => mockTrustedWebContents }
+      );
+
+      const validUpdate = await updateHandler(validEvent, {
+        patch: { searchEngine: 'custom', customSearchUrl: 'https://kagi.com/search?q=%s' }
+      });
+      assert.equal(validUpdate.ok, true);
+
+      // Disallowed key
+      const invalidUpdate = await updateHandler(validEvent, {
+        patch: { searchEngine: 'custom', maliciousKey: true }
+      });
+      assert.equal(invalidUpdate.ok, false);
+      assert.equal(invalidUpdate.error.code, 'INVALID_PAYLOAD');
+    });
   });
 });

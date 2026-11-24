@@ -198,19 +198,37 @@ describe('Core Security Invariants & Defensive Mandates', () => {
     });
   });
 
-  // Dual-Layer Bounds Calculation
+  // Dual-Layer Bounds Calculation & Persistent Top Bar Strategy
   describe('Dual-Layer Window Bounds Strategy', () => {
-    it('collapses UI view to 4px trigger zone when overlays are closed', () => {
-      const { uiBounds, websiteBounds } = calculateLayerBounds({
+    it('maintains persistent top navigation bar (74px) in default browsing mode', () => {
+      const { uiBounds, websiteBounds, topBarHeight } = calculateLayerBounds({
         windowWidth: 1280,
         windowHeight: 800,
         overlayOpen: false,
-        scratchpadOpen: false
+        scratchpadOpen: false,
+        distractionFree: false
       });
 
-      assert.equal(uiBounds.height, 4, 'UI view must collapse to 4px strip so website gets mouse events');
-      assert.equal(websiteBounds.width, 1280, 'Website view occupies full viewport');
+      assert.equal(topBarHeight, 74);
+      assert.equal(uiBounds.height, 74, 'UI view covers persistent top chrome so address bar and tabs are visible');
+      assert.equal(websiteBounds.y, 74, 'Website view starts cleanly below top chrome');
+      assert.equal(websiteBounds.height, 800 - 74, 'Website viewport height accounts for persistent top chrome');
+      assert.equal(websiteBounds.width, 1280, 'Website view occupies full viewport width');
+    });
+
+    it('collapses UI view to 4px hover trigger in distraction-free mode when overlays are closed', () => {
+      const { uiBounds, websiteBounds, topBarHeight } = calculateLayerBounds({
+        windowWidth: 1280,
+        windowHeight: 800,
+        overlayOpen: false,
+        scratchpadOpen: false,
+        distractionFree: true
+      });
+
+      assert.equal(uiBounds.height, 4, 'UI view collapses to 4px strip in distraction-free mode');
+      assert.equal(websiteBounds.y, 0, 'Website view starts at y: 0 in distraction-free mode');
       assert.equal(websiteBounds.height, 800);
+      assert.equal(websiteBounds.width, 1280);
     });
 
     it('expands UI view to full viewport when an overlay is open', () => {
@@ -236,7 +254,7 @@ describe('Core Security Invariants & Defensive Mandates', () => {
 
       assert.equal(actualDrawerWidth, 420);
       assert.equal(websiteBounds.width, 1280 - 420); // 860px
-      assert.equal(websiteBounds.height, 800);
+      assert.equal(websiteBounds.height, 800 - 74); // 726px
     });
   });
 });
