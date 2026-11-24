@@ -95,6 +95,22 @@ describe('5-Step Frame-Aware IPC Validation Pipeline', () => {
       assert.match(res.error, /unauthorized sender protocol/i);
     });
 
+    it('rejects file:// and data: URLs in senderFrame', () => {
+      const fileEvent = { senderFrame: { parent: null, url: 'file:///etc/passwd' } };
+      assert.equal(validateSenderFrame(fileEvent).valid, false);
+
+      const dataEvent = { senderFrame: { parent: null, url: 'data:text/html,<script>evil()</script>' } };
+      assert.equal(validateSenderFrame(dataEvent).valid, false);
+    });
+
+    it('rejects popup or window.open window senders not registered as Trusted UI', () => {
+      const popupWebContents = { id: 8888, isDestroyed: () => false };
+      const event = { sender: popupWebContents };
+      const res = validateSenderWebContents(event, mockTrustedWebContents);
+      assert.equal(res.valid, false);
+      assert.match(res.error, /not the registered trusted ui/i);
+    });
+
     it('rejects unauthorized internal host (e.g. zg://untrusted-host)', () => {
       const event = {
         senderFrame: {
@@ -123,6 +139,20 @@ describe('5-Step Frame-Aware IPC Validation Pipeline', () => {
       });
       assert.equal(res.valid, false);
       assert.match(res.error, /unexpected property/i);
+    });
+
+    it('rejects prototype pollution attempts via constructor or prototype keys', () => {
+      const res1 = validatePayload(IPC_CHANNELS.TAB_CLOSE, {
+        tabId: 'tab-123',
+        constructor: { prototype: { poll: true } }
+      });
+      assert.equal(res1.valid, false);
+
+      const res2 = validatePayload(IPC_CHANNELS.TAB_CLOSE, {
+        tabId: 'tab-123',
+        prototype: { isAdmin: true }
+      });
+      assert.equal(res2.valid, false);
     });
 
     it('rejects nav:go when url is missing or not a string', () => {

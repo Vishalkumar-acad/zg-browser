@@ -48,6 +48,45 @@ describe('Core Security Invariants & Defensive Mandates', () => {
       assert.equal(sec.validateWebPreferences({ sandbox: false }), false);
       assert.equal(sec.validateWebPreferences({ webSecurity: false }), false);
     });
+
+    it('TLS certificate error handler strictly fails closed and emits state:cert-error', () => {
+      let emittedCertError = null;
+      let callbackResult = 'not-called';
+      let defaultPrevented = false;
+
+      const sec = new SecurityController({
+        sendToTrustedUI: (ch, data) => {
+          emittedCertError = { ch, data };
+        }
+      });
+
+      let certErrorHandler = null;
+      const mockApp = {
+        on: (evt, handler) => {
+          if (evt === 'certificate-error') certErrorHandler = handler;
+        }
+      };
+
+      sec.attachCertificateErrorHandler(mockApp, () => 'tab-cert-test');
+      assert.ok(certErrorHandler);
+
+      const mockEvent = { preventDefault: () => { defaultPrevented = true; } };
+      certErrorHandler(
+        mockEvent,
+        {},
+        'https://expired.badssl.com',
+        'net::ERR_CERT_DATE_INVALID',
+        { issuerName: 'BadSSL Test CA' },
+        (allow) => { callbackResult = allow; }
+      );
+
+      assert.equal(defaultPrevented, true, 'Default must be prevented');
+      assert.equal(callbackResult, false, 'FAIL-CLOSED: Callback must receive false to reject invalid certificate');
+      assert.ok(emittedCertError);
+      assert.equal(emittedCertError.data.tabId, 'tab-cert-test');
+      assert.equal(emittedCertError.data.errorCode, 'net::ERR_CERT_DATE_INVALID');
+      assert.equal(emittedCertError.data.issuer, 'BadSSL Test CA');
+    });
   });
 
   // Navigation Controller Security

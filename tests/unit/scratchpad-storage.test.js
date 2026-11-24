@@ -169,5 +169,51 @@ describe('Scratchpad Storage & Syntax Lite Tokenizer', () => {
       assert.ok(note);
       assert.equal(note.title, '@my-project');
     });
+
+    it('coalesces multiple rapid input events into a single debounced save', async () => {
+      let inputListener = null;
+      const mockEditor = {
+        value: 'start',
+        addEventListener: (evt, fn) => {
+          if (evt === 'input') inputListener = fn;
+        }
+      };
+      const mockStatus = { textContent: '' };
+
+      const controller = new ScratchpadController({
+        editorEl: mockEditor,
+        statusEl: mockStatus,
+        debounceMs: 50
+      });
+
+      await controller.init();
+
+      let saveCount = 0;
+      const originalSaveNote = controller.storage.saveNote.bind(controller.storage);
+      controller.storage.saveNote = async (record) => {
+        saveCount += 1;
+        return originalSaveNote(record);
+      };
+
+      // Rapidly fire 5 keystrokes
+      for (let i = 1; i <= 5; i++) {
+        mockEditor.value = `rapid typing step ${i}`;
+        if (inputListener) inputListener();
+      }
+
+      // Immediately after typing, timer hasn't fired yet
+      assert.equal(saveCount, 0, 'No save should execute synchronously before debounce expires');
+      assert.equal(controller.isDirty, true);
+
+      // Wait for debounce timeout
+      await new Promise(resolve => setTimeout(resolve, 80));
+
+      // After debounce timeout, exactly 1 save occurred
+      assert.equal(saveCount, 1, 'Rapid typing coalesced into exactly one persistent save');
+      assert.equal(controller.isDirty, false);
+
+      const note = await controller.storage.getNote('default_note');
+      assert.equal(note.content, 'rapid typing step 5');
+    });
   });
 });

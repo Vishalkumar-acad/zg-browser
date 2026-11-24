@@ -10,7 +10,9 @@
     "test": "node --max-old-space-size=256 --test --test-concurrency=1 tests/**/*.test.js",
     "test:security": "node --max-old-space-size=256 --test --test-concurrency=1 tests/security/*.test.js",
     "test:functional": "node --max-old-space-size=256 --test --test-concurrency=1 tests/functional/*.test.js",
-    "test:unit": "node --max-old-space-size=256 --test --test-concurrency=1 tests/unit/*.test.js"
+    "test:unit": "node --max-old-space-size=256 --test --test-concurrency=1 tests/unit/*.test.js",
+    "test:integration": "node --max-old-space-size=256 --test --test-concurrency=1 tests/integration/*.test.js",
+    "package:linux": "electron-builder --linux"
   },
   "keywords": [
     "browser",
@@ -22,7 +24,30 @@
   "author": "Vishal Kumar",
   "license": "MIT",
   "devDependencies": {
-    "electron": "31.7.7"
+    "electron": "31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.zerogravity.browser",
+    "productName": "Zero-Gravity Browser",
+    "executableName": "zg-browser",
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network;WebBrowser;",
+      "maintainer": "Vishal Kumar <vishalkumar.acad@gmail.com>",
+      "synopsis": "Lightweight, secure, developer-centric Electron browser",
+      "description": "Zero-Gravity Browser (zg-browser): local-first, lightweight, secure developer-centric browser."
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ]
   },
   "engines": {
     "node": ">=20.0.0"

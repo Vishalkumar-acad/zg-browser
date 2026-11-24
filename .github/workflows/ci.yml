@@ -1,14 +1,18 @@
-name: CI
+name: CI & Linux Release Pipeline
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
-  test:
-    name: Build & Test Suite
+  verify:
+    name: Full Verification Gate (Build, Security & Integration Tests)
     runs-on: ubuntu-latest
 
     steps:
@@ -26,5 +30,91 @@ jobs:
       - name: Run Automated Security Test Suite
         run: npm run test:security
 
+      - name: Run Unit Test Suite
+        run: npm run test:unit
+
+      - name: Run End-to-End Integration Test Suite
+        run: npm run test:integration
+
       - name: Run Full Test Suite (Sequential Low-Memory Mode)
         run: npm test
+
+  package-and-release:
+    name: Reproducible Linux Build, SHA-256 & Release
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Clean Deterministic Dependency Installation
+        run: npm ci
+
+      - name: Package Linux Artifacts (.AppImage & .deb)
+        run: npm run package:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Generate and Re-verify SHA-256 Checksums
+        run: |
+          cd dist
+          echo "Package directory contents:"
+          ls -lh
+          # Generate SHA256SUMS.txt for output packages
+          sha256sum *.AppImage *.deb > SHA256SUMS.txt
+          echo "=== SHA256SUMS.txt ==="
+          cat SHA256SUMS.txt
+          echo "======================"
+          echo "Explicitly re-verifying SHA-256 checksums..."
+          sha256sum -c SHA256SUMS.txt
+          echo "All Linux package SHA-256 checksums successfully re-verified!"
+
+      - name: Upload Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: zg-browser-linux-x64
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (on Tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Publishing GitHub Release for tag: $TAG_NAME"
+
+          # Clean up any pre-existing release for this tag if needed
+          gh release view "$TAG_NAME" && gh release delete "$TAG_NAME" --yes || true
+
+          CHECKSUMS_BODY=$(cat dist/SHA256SUMS.txt)
+
+          gh release create "$TAG_NAME" \
+            dist/*.AppImage \
+            dist/*.deb \
+            dist/SHA256SUMS.txt \
+            --title "Zero-Gravity Browser $TAG_NAME" \
+            --notes "## Zero-Gravity Browser ($TAG_NAME)
+
+          Lightweight, secure, developer-centric Electron browser built strictly according to **Zero-Gravity Browser: AI Architectural Pathway & Blueprint (v2.3)**.
+
+          ### Verified Linux Artifacts & SHA-256 Checksums
+          \`\`\`
+          $CHECKSUMS_BODY
+          \`\`\`
+
+          All packages and checksums are verified via automated GitHub Actions CI pipeline."

@@ -88,24 +88,28 @@ zg-browser/
 │       ├── ipc-channels.js        # Strongly typed IPC channel registry
 │       ├── schemas.js             # Strict IPC payload schemas
 │       └── types.js               # Core data structures & types
-└── tests/                         # Comprehensive automated test suite
-    ├── functional/                # Tab lifecycle, history, downloads, privacy tests
-    ├── security/                  # IPC validation, zg:// traversal, TLS, safeStorage, vault tests
-    └── unit/                      # Schemas, types, syntax highlighter, backup tests
+├── tests/                         # Comprehensive automated test suite
+│   ├── functional/                # Tab lifecycle, history, downloads, privacy tests
+│   ├── integration/               # End-to-end browser lifecycle & security pipeline
+│   ├── security/                  # IPC validation, zg:// traversal, TLS, safeStorage, vault tests
+│   └── unit/                      # Schemas, types, syntax highlighter, backup tests
 ```
 
 ---
 
 ## Verification & Testing
 
-The test suite runs using Node.js's built-in test runner with zero external testing dependencies:
+The test suite runs using Node.js's built-in test runner with sequential low-memory execution (capped at 256MB heap, ~55MB peak RSS):
 
 ```bash
-# Run all 105 tests across 32 suites
+# Run all 123 tests across 41 suites
 npm test
 
 # Run security test suite only
 npm run test:security
+
+# Run integration test suite only
+npm run test:integration
 
 # Run functional test suite only
 npm run test:functional
@@ -113,5 +117,13 @@ npm run test:functional
 # Run unit test suite only
 npm run test:unit
 ```
+
+---
+
+## Linux Packaging & SHA-256 Verification
+
+Packaged for Linux via `electron-builder` in GitHub Actions CI:
+- **Formats:** `.AppImage` (standalone) and `.deb` (Debian/Ubuntu)
+- **Integrity Verification:** Every release automatically generates `SHA256SUMS.txt` and executes `sha256sum -c SHA256SUMS.txt` before publishing.
 
 All tests are continuously verified on every commit via [GitHub Actions CI](https://github.com/Vishalkumar-acad/zg-browser/actions).

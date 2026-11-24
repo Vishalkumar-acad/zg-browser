@@ -81,6 +81,29 @@ describe('zg:// Scheme Security & Directory Traversal Defense', () => {
     assert.equal(result.statusCode, 403);
   });
 
+  it('rejects double-encoded directory traversal (%252e%252e)', () => {
+    const result = resolveZgUrl('zg://ui/%252e%252e/%252e%252e/secret', MOCK_RENDERER_DIR);
+    assert.equal(result.valid, false);
+    assert.equal(result.statusCode, 403);
+  });
+
+  it('rejects Windows drive paths and root escape attempts', () => {
+    const result = resolveZgUrl('zg://ui/C:/windows/system32', MOCK_RENDERER_DIR);
+    assert.equal(result.valid, false);
+    assert.equal(result.statusCode, 403);
+  });
+
+  it('enforces strict Content-Security-Policy headers on resolved assets', () => {
+    const result = resolveZgUrl('zg://ui/index.html', MOCK_RENDERER_DIR);
+    assert.equal(result.valid, true);
+    assert.ok(result.headers['Content-Security-Policy']);
+    const csp = result.headers['Content-Security-Policy'];
+    assert.ok(csp.includes("default-src 'self'"));
+    assert.ok(csp.includes("script-src 'self'"));
+    assert.ok(csp.includes("frame-src 'none'"));
+    assert.ok(!csp.includes("'unsafe-eval'"));
+  });
+
   it('handles empty or malformed URLs gracefully', () => {
     const resEmpty = resolveZgUrl('', MOCK_RENDERER_DIR);
     assert.equal(resEmpty.valid, false);

@@ -240,6 +240,38 @@ describe('GitHub Vault Synchronization & Security Pipeline', () => {
       cleanup();
     });
 
+    it('handles HTTP 403 forbidden gracefully', async () => {
+      const { service, secretsManager, mockFetchResponses, cleanup } = createHarness();
+      secretsManager.setSecret('github_token', 'valid-token');
+
+      mockFetchResponses.set('https://api.github.com/repos/Vishalkumar-acad/test-vault/contents/.zg-vault/notes.md', {
+        status: 403,
+        data: { message: 'Must have push access' }
+      });
+
+      await assert.rejects(async () => {
+        await service.pull('.zg-vault/notes.md');
+      }, /403/);
+
+      cleanup();
+    });
+
+    it('handles HTTP 429 rate limit exceeded gracefully', async () => {
+      const { service, secretsManager, mockFetchResponses, cleanup } = createHarness();
+      secretsManager.setSecret('github_token', 'valid-token');
+
+      mockFetchResponses.set('https://api.github.com/repos/Vishalkumar-acad/test-vault/contents/.zg-vault/notes.md', {
+        status: 429,
+        data: { message: 'Rate limit exceeded' }
+      });
+
+      await assert.rejects(async () => {
+        await service.pull('.zg-vault/notes.md');
+      }, /429/);
+
+      cleanup();
+    });
+
     it('handles HTTP 409 conflict and preserves local content without blind overwrite', async () => {
       const { service, secretsManager, mockFetchResponses, cleanup } = createHarness();
       secretsManager.setSecret('github_token', 'valid-token');

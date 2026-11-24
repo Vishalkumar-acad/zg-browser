@@ -72,7 +72,7 @@ function resolveZgUrl(urlString, baseDir) {
   }
 
   // Reject raw or encoded path traversal strings before URL parsing
-  if (urlString.includes('..') || /%2e\.|\.%2e|%2e%2e/i.test(urlString)) {
+  if (urlString.includes('..') || /%252e|%2e\.|\.%2e|%2e%2e/i.test(urlString)) {
     return { valid: false, error: 'Directory traversal rejected', statusCode: 403 };
   }
 
@@ -123,6 +123,11 @@ function resolveZgUrl(urlString, baseDir) {
     return { valid: false, error: 'Illegal characters in path', statusCode: 403 };
   }
 
+  // Defend against Windows drive paths and root escape attempts
+  if (/^[a-zA-Z]:/i.test(decodedPath.replace(/^\//, ''))) {
+    return { valid: false, error: 'Illegal drive letter in path', statusCode: 403 };
+  }
+
   // Normalize and resolve against baseDir
   const normalizedBase = path.resolve(baseDir);
   const targetPath = path.resolve(normalizedBase, '.' + decodedPath);
@@ -138,7 +143,13 @@ function resolveZgUrl(urlString, baseDir) {
   return {
     valid: true,
     resolvedPath: targetPath,
-    mimeType
+    mimeType,
+    headers: {
+      'Content-Security-Policy': TRUSTED_UI_CSP,
+      'Content-Type': mimeType,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY'
+    }
   };
 }
 
