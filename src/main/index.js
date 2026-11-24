@@ -1,6 +1,6 @@
 /**
  * Zero-Gravity Browser (zg-browser) - Main Process Entry Point
- * Single Source of Truth: Blueprint v2.3 Section 1, 2, 3 & 4
+ * Single Source of Truth: Blueprint v2.3 Section 1, 2, 3, 4 & 5
  */
 
 const { app, protocol, ipcMain, session } = require('electron');
@@ -17,6 +17,8 @@ const { TabManager } = require('./tab-manager');
 const { DownloadManager } = require('./download-manager');
 const { HistoryManager } = require('./history-manager');
 const { SettingsManager } = require('./settings-manager');
+const { PrivacyManager } = require('./privacy-manager');
+const { MainStorageManager } = require('./storage-manager');
 const { registerIpcHandlers } = require('./ipc-handlers');
 
 // Register zg:// privileged scheme before app.whenReady()
@@ -37,6 +39,8 @@ if (!gotTheLock) {
   let downloadManager;
   let historyManager;
   let settingsManager;
+  let privacyManager;
+  let storageManager;
 
   const preloadPath = path.join(__dirname, '../preload/index.js');
   const rendererDir = path.join(__dirname, '../renderer');
@@ -81,11 +85,14 @@ if (!gotTheLock) {
     historyManager = new HistoryManager();
     settingsManager = new SettingsManager({ configPath });
     downloadManager = new DownloadManager({ sendToTrustedUI });
+    privacyManager = new PrivacyManager({ sessionManager });
+    storageManager = new MainStorageManager();
 
     // Attach session managers to persistent session
     const persistentSession = sessionManager.getPersistentSession();
     permissionManager.attachToSession(persistentSession);
     downloadManager.attachToSession(persistentSession);
+    privacyManager.attachToSession(persistentSession);
 
     // Initialize Tab & Lifecycle Manager
     tabManager = new TabManager({
@@ -118,6 +125,8 @@ if (!gotTheLock) {
       settingsManager,
       downloadManager,
       historyManager,
+      privacyManager,
+      storageManager,
       sendToTrustedUI
     });
 

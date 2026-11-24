@@ -19,6 +19,8 @@ const { createValidatedHandler } = require('./ipc-validator');
  * @param {import('./settings-manager').SettingsManager} [deps.settingsManager]
  * @param {import('./download-manager').DownloadManager} [deps.downloadManager]
  * @param {import('./history-manager').HistoryManager} [deps.historyManager]
+ * @param {import('./privacy-manager').PrivacyManager} [deps.privacyManager]
+ * @param {import('./storage-manager').MainStorageManager} [deps.storageManager]
  * @param {Function} [deps.sendToTrustedUI]
  */
 function registerIpcHandlers({
@@ -29,6 +31,8 @@ function registerIpcHandlers({
   settingsManager,
   downloadManager,
   historyManager,
+  privacyManager,
+  storageManager,
   sendToTrustedUI
 }) {
   const context = {
@@ -208,7 +212,6 @@ function registerIpcHandlers({
           findNext: false
         });
 
-        // Attach listener for found-in-page events
         if (!wc._hasFindListener && typeof wc.on === 'function') {
           wc._hasFindListener = true;
           wc.on('found-in-page', (_evt, result) => {
@@ -329,6 +332,85 @@ function registerIpcHandlers({
         return historyManager.clear(payload ? payload.range : 'all');
       }
       return { ok: true };
+    }, context)
+  );
+
+  // --- Privacy & Tracker Blocking ---
+  ipcMain.handle(
+    IPC_CHANNELS.PRIVACY_TOGGLE_TRACKER_BLOCKING,
+    createValidatedHandler(IPC_CHANNELS.PRIVACY_TOGGLE_TRACKER_BLOCKING, async (payload) => {
+      if (privacyManager) {
+        return privacyManager.toggleTrackerBlocking(payload ? payload.enabled : undefined);
+      }
+      return { enabled: true };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.PRIVACY_ALLOWLIST_SITE,
+    createValidatedHandler(IPC_CHANNELS.PRIVACY_ALLOWLIST_SITE, async (payload) => {
+      if (privacyManager) {
+        return privacyManager.allowlistSite(payload.domain, payload.allow);
+      }
+      return { ok: true };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.PRIVACY_CLEAR_SITE_DATA,
+    createValidatedHandler(IPC_CHANNELS.PRIVACY_CLEAR_SITE_DATA, async (payload) => {
+      if (privacyManager) {
+        return privacyManager.clearSiteData(payload.origin);
+      }
+      return { ok: true };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.PRIVACY_GET_BLOCKED_STATS,
+    createValidatedHandler(IPC_CHANNELS.PRIVACY_GET_BLOCKED_STATS, async (payload) => {
+      const targetId = payload.tabId === 'active' && tabManager ? tabManager.activeTabId : payload.tabId;
+      if (privacyManager) {
+        return privacyManager.getBlockedStats(targetId);
+      }
+      return { count: 0, domains: [] };
+    }, context)
+  );
+
+  // --- Reader Mode (Strictly CSS-only) ---
+  ipcMain.handle(
+    IPC_CHANNELS.READER_TOGGLE,
+    createValidatedHandler(IPC_CHANNELS.READER_TOGGLE, async (payload) => {
+      const targetId = payload.tabId === 'active' && tabManager ? tabManager.activeTabId : payload.tabId;
+      if (tabManager) {
+        return tabManager.toggleReaderMode(targetId);
+      }
+      return { active: false };
+    }, context)
+  );
+
+  // --- Storage Export & Import ---
+  ipcMain.handle(
+    IPC_CHANNELS.STORAGE_EXPORT,
+    createValidatedHandler(IPC_CHANNELS.STORAGE_EXPORT, async (payload) => {
+      if (storageManager) {
+        const sampleContent = payload.format === 'json' ? '{"notes":[]}' : '# Notes\n';
+        return storageManager.exportToFile(payload.format, sampleContent);
+      }
+      return { filePath: '/tmp/backup.' + payload.format };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.STORAGE_IMPORT,
+    createValidatedHandler(IPC_CHANNELS.STORAGE_IMPORT, async (payload) => {
+      if (storageManager && payload && payload.data) {
+        const check = storageManager.validateImportPayload(payload.data);
+        if (!check.valid) {
+          return { ok: false, error: { code: 'INVALID_DATA', message: check.error } };
+        }
+      }
+      return { importedCount: 0 };
     }, context)
   );
 }

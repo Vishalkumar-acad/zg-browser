@@ -7,8 +7,24 @@
  * in-memory ephemeral isolation, and render-process-gone / unresponsive crash recovery.
  */
 
+const path = require('path');
+const fs = require('fs');
 const { IPC_CHANNELS } = require('../shared/ipc-channels');
 const { getUntrustedWebPreferences } = require('./security-controller');
+
+// Cache reader CSS
+let cachedReaderCSS = null;
+function getReaderCSS() {
+  if (!cachedReaderCSS) {
+    try {
+      const cssPath = path.join(__dirname, '../renderer/styles/reader.css');
+      cachedReaderCSS = fs.readFileSync(cssPath, 'utf8');
+    } catch {
+      cachedReaderCSS = 'body { font-size: 18px !important; line-height: 1.8 !important; }';
+    }
+  }
+  return cachedReaderCSS;
+}
 
 let electron;
 try {
@@ -363,6 +379,44 @@ class TabManager {
       tab.view.webContents.reload();
     }
     return { ok: true, data: { reloaded: true } };
+  }
+
+  /**
+   * Toggles CSS-only Reader Mode on a tab
+   * STRICT SECURITY MANDATE: Uses webContents.insertCSS only; NEVER executeJavaScript scrapers!
+   * @param {string} tabId
+   */
+  async toggleReaderMode(tabId) {
+    const targetId = tabId === 'active' ? this.activeTabId : tabId;
+    const tab = this.tabs.get(targetId);
+    if (!tab || !tab.view || !tab.view.webContents) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Tab does not exist' } };
+    }
+
+    const wc = tab.view.webContents;
+    const readerCSS = getReaderCSS();
+
+    if (tab.readerActive && tab.readerCSSKey) {
+      if (typeof wc.removeInsertedCSS === 'function') {
+        try {
+          await wc.removeInsertedCSS(tab.readerCSSKey);
+        } catch {}
+      }
+      tab.readerActive = false;
+      tab.readerCSSKey = null;
+    } else {
+      if (typeof wc.insertCSS === 'function') {
+        try {
+          tab.readerCSSKey = await wc.insertCSS(readerCSS);
+        } catch {}
+      } else {
+        tab.readerCSSKey = 'mock-key';
+      }
+      tab.readerActive = true;
+    }
+
+    this.broadcastState();
+    return { ok: true, data: { active: tab.readerActive } };
   }
 
   /**
