@@ -1,0 +1,55 @@
+/* Scratchpad Drawer Styles */
+.scratchpad-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100vh;
+  background: var(--zg-bg-primary);
+  border-left: 1px solid var(--zg-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 2000;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+.drawer-header {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--zg-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-status {
+  font-size: 11px;
+  color: var(--zg-text-secondary);
+  font-weight: normal;
+}
+
+.drawer-body {
+  flex: 1;
+  display: flex;
+}
+
+.drawer-body textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 16px;
+  color: var(--zg-text-primary);
+  font-family: var(--zg-font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+}

@@ -13,6 +13,10 @@ const { PermissionManager } = require('./permission-manager');
 const { NavigationController } = require('./navigation-controller');
 const { SecurityController } = require('./security-controller');
 const { ErrorHandler } = require('./error-handler');
+const { TabManager } = require('./tab-manager');
+const { DownloadManager } = require('./download-manager');
+const { HistoryManager } = require('./history-manager');
+const { SettingsManager } = require('./settings-manager');
 const { registerIpcHandlers } = require('./ipc-handlers');
 
 // Register zg:// privileged scheme before app.whenReady()
@@ -29,9 +33,15 @@ if (!gotTheLock) {
   let securityController;
   let sessionManager;
   let navigationController;
+  let tabManager;
+  let downloadManager;
+  let historyManager;
+  let settingsManager;
 
   const preloadPath = path.join(__dirname, '../preload/index.js');
   const rendererDir = path.join(__dirname, '../renderer');
+  const userDataPath = app && typeof app.getPath === 'function' ? app.getPath('userData') : '/tmp';
+  const configPath = path.join(userDataPath, 'settings.json');
 
   app.on('second-instance', () => {
     if (windowManager && windowManager.mainWindow) {
@@ -40,7 +50,7 @@ if (!gotTheLock) {
     }
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // 1. Setup custom protocol handler for zg://
     setupProtocolHandler(protocol, rendererDir);
 
@@ -60,29 +70,68 @@ if (!gotTheLock) {
     sessionManager = new SessionManager(session);
     permissionManager = new PermissionManager({ sendToTrustedUI });
     securityController = new SecurityController({ sendToTrustedUI });
-    navigationController = new NavigationController();
+    navigationController = new NavigationController({
+      onNewTabRequested: (url) => {
+        if (tabManager) {
+          tabManager.createTab({ url });
+        }
+      }
+    });
 
-    // Attach permission handlers to persistent session
-    permissionManager.attachToSession(sessionManager.getPersistentSession());
+    historyManager = new HistoryManager();
+    settingsManager = new SettingsManager({ configPath });
+    downloadManager = new DownloadManager({ sendToTrustedUI });
+
+    // Attach session managers to persistent session
+    const persistentSession = sessionManager.getPersistentSession();
+    permissionManager.attachToSession(persistentSession);
+    downloadManager.attachToSession(persistentSession);
+
+    // Initialize Tab & Lifecycle Manager
+    tabManager = new TabManager({
+      windowManager,
+      sessionManager,
+      navigationController,
+      historyManager,
+      errorHandler,
+      sendToTrustedUI
+    });
 
     // Attach certificate fail-closed security handler
-    securityController.attachCertificateErrorHandler(app, () => 'main');
+    securityController.attachCertificateErrorHandler(app, (wc) => {
+      if (tabManager) {
+        for (const tab of tabManager.tabs.values()) {
+          if (tab.view && tab.view.webContents === wc) {
+            return tab.id;
+          }
+        }
+      }
+      return 'main';
+    });
 
     // 3. Register 5-Step Frame-Aware IPC Handlers
     registerIpcHandlers({
       ipcMain,
       windowManager,
-      permissionManager
+      permissionManager,
+      tabManager,
+      settingsManager,
+      downloadManager,
+      historyManager,
+      sendToTrustedUI
     });
 
     // 4. Create Main Window & Layered UI
-    const win = windowManager.createWindow();
+    windowManager.createWindow();
 
     // Attach navigation controls to Trusted UI webContents
     const uiWebContents = windowManager.getTrustedUIWebContents();
     if (uiWebContents) {
       navigationController.attachToTrustedUIWebContents(uiWebContents);
     }
+
+    // 5. Create initial default tab
+    await tabManager.createTab({ url: 'https://duckduckgo.com' });
   });
 
   app.on('window-all-closed', () => {

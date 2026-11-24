@@ -13,44 +13,181 @@
 
   <!-- Floating Overlays Container (Managed by Dual-Layer Bounds) -->
   <div id="overlays-root" class="overlays-root" hidden>
+    
+    <!-- Floating Tabstrip Overlay -->
+    <div id="overlay-tabstrip" class="overlay-panel" hidden>
+      <div id="tabstrip-container" class="tabstrip-container">
+        <!-- Rendered by tab-strip.js -->
+        <button id="btn-new-tab" class="new-tab-btn" title="New Tab (Ctrl/Cmd+T)">+</button>
+      </div>
+    </div>
+
     <!-- Omnibar Overlay -->
     <div id="overlay-omnibar" class="overlay-panel" hidden>
-      <div class="omnibar-container">
-        <input type="text" id="omnibar-input" placeholder="Search or enter address..." autocomplete="off" spellcheck="false">
+      <div class="omnibar-overlay">
+        <div class="omnibar-row">
+          <span id="omnibar-security-badge" class="omnibar-security-badge">🔒</span>
+          <input type="text" id="omnibar-input" class="omnibar-input" placeholder="Search with DuckDuckGo or enter URL..." autocomplete="off" spellcheck="false">
+        </div>
+        <div class="omnibar-hints">
+          <span>⏎ Navigate / Search</span>
+          <span>Esc Dismiss</span>
+          <span>Ctrl+T New Tab</span>
+          <span>Ctrl+K Commands</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Command Palette Overlay -->
+    <div id="overlay-command-palette" class="overlay-panel" hidden>
+      <div class="command-palette">
+        <input type="text" id="command-input" class="command-input" placeholder="Type a command or shortcut..." autocomplete="off">
+        <ul id="command-list" class="command-list">
+          <li class="command-item selected" data-action="new-tab">
+            <span>New Tab</span>
+            <span class="command-shortcut">Ctrl+T</span>
+          </li>
+          <li class="command-item" data-action="close-tab">
+            <span>Close Current Tab</span>
+            <span class="command-shortcut">Ctrl+W</span>
+          </li>
+          <li class="command-item" data-action="open-scratchpad">
+            <span>Toggle Scratchpad Drawer</span>
+            <span class="command-shortcut">Ctrl+Shift+E</span>
+          </li>
+          <li class="command-item" data-action="open-history">
+            <span>View Browsing History</span>
+            <span class="command-shortcut">Ctrl+H</span>
+          </li>
+          <li class="command-item" data-action="open-settings">
+            <span>Settings</span>
+            <span class="command-shortcut">Ctrl+,</span>
+          </li>
+          <li class="command-item" data-action="toggle-distraction-free">
+            <span>Toggle Distraction-Free UI</span>
+            <span class="command-shortcut">Ctrl+Shift+D</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Find in Page Bar -->
+    <div id="overlay-find-bar" class="overlay-panel" hidden>
+      <div class="find-bar">
+        <input type="text" id="find-input" class="find-input" placeholder="Find in page..." autocomplete="off">
+        <span id="find-count" class="find-count">0/0</span>
+        <button id="find-prev-btn" class="find-btn" title="Previous match">▲</button>
+        <button id="find-next-btn" class="find-btn" title="Next match">▼</button>
+        <button id="find-close-btn" class="find-btn" title="Close (Esc)">✕</button>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="overlay-history-panel" class="overlay-panel" hidden>
+      <div class="history-panel">
+        <div class="panel-header">
+          <span class="panel-title">Browsing History</span>
+          <div style="display: flex; gap: 8px;">
+            <button id="history-clear-hour-btn" class="zg-btn">Clear Last Hour</button>
+            <button id="history-clear-all-btn" class="zg-btn">Clear All</button>
+            <button id="history-close-btn" class="zg-btn-icon">✕</button>
+          </div>
+        </div>
+        <ul id="history-list" class="panel-list">
+          <!-- Rendered by history-panel.js -->
+        </ul>
+      </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div id="overlay-settings-panel" class="overlay-panel" hidden>
+      <div class="settings-panel">
+        <div class="panel-header">
+          <span class="panel-title">Settings</span>
+          <button id="settings-close-btn" class="zg-btn-icon">✕</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <label style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Theme:</span>
+            <select id="settings-theme-select" class="zg-btn">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="system">System</option>
+            </select>
+          </label>
+          <label style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Default Search Engine:</span>
+            <select id="settings-search-select" class="zg-btn">
+              <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
+              <option value="https://www.google.com/search?q=">Google</option>
+            </select>
+          </label>
+          <label style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Tracker Blocking:</span>
+            <input type="checkbox" id="settings-tracker-check" checked>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Bar -->
+    <div id="overlay-download-bar" class="overlay-panel" hidden>
+      <div class="download-bar-container">
+        <div class="panel-header">
+          <span class="panel-title">Downloads</span>
+          <button id="download-bar-close-btn" class="zg-btn-icon">✕</button>
+        </div>
+        <div id="download-list">
+          <!-- Rendered by download-bar.js -->
+        </div>
       </div>
     </div>
 
     <!-- Certificate Error Banner -->
-    <div id="overlay-cert-error" class="overlay-panel cert-error-panel" hidden>
-      <div class="cert-error-content">
-        <span class="warning-icon">⚠️</span>
-        <span id="cert-error-text">Security Warning: The website presented an untrusted certificate. Navigation blocked.</span>
+    <div id="overlay-cert-error" class="overlay-panel" hidden>
+      <div class="cert-error-panel">
+        <div>
+          <span style="font-weight: bold;">⚠️ Security Risk:</span>
+          <span id="cert-error-text"> The website presented an invalid or untrusted certificate. Navigation has been blocked.</span>
+        </div>
+        <button id="cert-error-close-btn" class="zg-btn-icon" style="color: #fca5a5;">✕</button>
       </div>
     </div>
 
     <!-- Permission Prompt Banner -->
-    <div id="overlay-permission-prompt" class="overlay-panel permission-panel" hidden>
-      <div class="permission-content">
-        <span id="permission-prompt-text">Permission request</span>
+    <div id="overlay-permission-prompt" class="overlay-panel" hidden>
+      <div class="permission-panel">
+        <div>
+          <span style="font-weight: 600; font-size: 14px;">Permission Request</span>
+          <p id="permission-prompt-text" style="font-size: 13px; color: var(--zg-text-secondary); margin-top: 4px;"></p>
+        </div>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <input type="checkbox" id="permission-persist-check"> Remember this decision for this site
+        </label>
         <div class="permission-actions">
           <button id="permission-allow-btn" class="zg-btn zg-btn-primary">Allow</button>
           <button id="permission-deny-btn" class="zg-btn">Deny</button>
         </div>
       </div>
     </div>
+
   </div>
 
-  <!-- Side Scratchpad Drawer -->
+  <!-- Side Scratchpad Drawer (Docked Resize) -->
   <aside id="scratchpad-drawer" class="scratchpad-drawer" hidden>
     <div class="drawer-header">
-      <span class="drawer-title">Scratchpad</span>
+      <div class="drawer-title">
+        <span>Scratchpad</span>
+        <span id="scratchpad-status" class="drawer-status">Saved</span>
+      </div>
       <button id="drawer-close-btn" class="zg-btn-icon" title="Close Drawer (Esc)">✕</button>
     </div>
     <div class="drawer-body">
-      <textarea id="scratchpad-editor" placeholder="Write notes, snippets, or code here..." spellcheck="false"></textarea>
+      <textarea id="scratchpad-editor" placeholder="Write code, notes, or snippets here... Auto-saves locally." spellcheck="false"></textarea>
     </div>
   </aside>
 
+  <!-- Modular Component Scripts -->
   <script src="components/index.js"></script>
 </body>
 </html>

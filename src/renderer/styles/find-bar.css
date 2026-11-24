@@ -1,0 +1,44 @@
+/* Find in Page Bar Styles */
+.find-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  padding: 6px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  width: 360px;
+}
+
+.find-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--zg-text-primary);
+  font-size: 13px;
+  font-family: var(--zg-font-sans);
+}
+
+.find-count {
+  font-size: 12px;
+  color: var(--zg-text-secondary);
+  font-family: var(--zg-font-mono);
+  min-width: 45px;
+  text-align: right;
+}
+
+.find-btn {
+  background: transparent;
+  border: 1px solid var(--zg-border);
+  border-radius: 4px;
+  color: var(--zg-text-primary);
+  font-size: 12px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.find-btn:hover {
+  background: var(--zg-bg-elevated);
+}

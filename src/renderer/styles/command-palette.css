@@ -1,0 +1,54 @@
+/* Command Palette Styles */
+.command-palette {
+  width: 580px;
+  max-width: 90vw;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.command-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--zg-text-primary);
+  font-size: 14px;
+  border-bottom: 1px solid var(--zg-border);
+  font-family: var(--zg-font-sans);
+}
+
+.command-list {
+  max-height: 280px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.command-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--zg-text-primary);
+}
+
+.command-item:hover, .command-item.selected {
+  background: var(--zg-bg-elevated);
+}
+
+.command-shortcut {
+  font-size: 11px;
+  color: var(--zg-text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--zg-border);
+  font-family: var(--zg-font-mono);
+}

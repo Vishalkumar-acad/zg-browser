@@ -1,6 +1,12 @@
 /**
- * Zero-Gravity Browser - Modular CSS Variables & Minimal Theme
+ * Zero-Gravity Browser - Modular CSS
  */
+
+@import "omnibar.css";
+@import "overlays.css";
+@import "command-palette.css";
+@import "find-bar.css";
+@import "drawer.css";
 
 :root {
   --zg-bg-primary: #0f1117;
@@ -48,70 +54,7 @@ body {
   background: rgba(59, 130, 246, 0.4);
 }
 
-/* Overlays Container */
-.overlays-root {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 12px;
-  pointer-events: auto;
-}
-
-.overlay-panel {
-  width: 640px;
-  max-width: 90vw;
-  background: var(--zg-bg-secondary);
-  border: 1px solid var(--zg-border);
-  border-radius: var(--zg-radius);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-  margin-bottom: 8px;
-  overflow: hidden;
-}
-
-/* Omnibar */
-.omnibar-container {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-}
-
-.omnibar-container input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--zg-text-primary);
-  font-size: 14px;
-  font-family: var(--zg-font-sans);
-}
-
-/* Cert Error Banner */
-.cert-error-panel {
-  background: #3b1111;
-  border-color: var(--zg-danger);
-  padding: 12px 16px;
-  font-size: 13px;
-  color: #fca5a5;
-}
-
-/* Permission Prompt */
-.permission-panel {
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.permission-actions {
-  display: flex;
-  gap: 8px;
-}
-
+/* Buttons */
 .zg-btn {
   padding: 6px 12px;
   border-radius: 4px;
@@ -122,50 +65,120 @@ body {
   cursor: pointer;
 }
 
+.zg-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .zg-btn-primary {
   background: var(--zg-accent);
   border-color: var(--zg-accent);
   color: #fff;
 }
 
-/* Side Scratchpad Drawer */
-.scratchpad-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 420px;
-  height: 100vh;
-  background: var(--zg-bg-primary);
-  border-left: 1px solid var(--zg-border);
-  display: flex;
-  flex-direction: column;
-  z-index: 2000;
+.zg-btn-primary:hover {
+  background: var(--zg-accent-hover);
 }
 
-.drawer-header {
-  height: 40px;
+.zg-btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--zg-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.zg-btn-icon:hover {
+  color: var(--zg-text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Panels (History & Settings) */
+.history-panel, .settings-panel {
+  width: 580px;
+  max-width: 90vw;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  padding: 16px;
+  max-height: 400px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-header {
+  display: flex;
   justify-content: space-between;
-  padding: 0 12px;
+  align-items: center;
   border-bottom: 1px solid var(--zg-border);
-  font-size: 13px;
+  padding-bottom: 8px;
+}
+
+.panel-title {
+  font-size: 14px;
   font-weight: 600;
 }
 
-.drawer-body {
+.panel-list {
   flex: 1;
+  overflow-y: auto;
+  list-style: none;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.drawer-body textarea {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  padding: 12px;
-  color: var(--zg-text-primary);
-  font-family: var(--zg-font-mono);
+.panel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--zg-bg-elevated);
+  border-radius: 4px;
   font-size: 13px;
-  resize: none;
+}
+
+.panel-item-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 420px;
+}
+
+/* Cert Error Panel */
+.cert-error-panel {
+  width: 640px;
+  max-width: 90vw;
+  background: #3b1111;
+  border: 1px solid var(--zg-danger);
+  border-radius: var(--zg-radius);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fca5a5;
+  font-size: 13px;
+}
+
+/* Permission Prompt */
+.permission-panel {
+  width: 500px;
+  max-width: 90vw;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.permission-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

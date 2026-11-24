@@ -1,0 +1,148 @@
+/* Overlays Common Styles */
+.overlays-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  pointer-events: auto;
+}
+
+.overlay-panel {
+  margin-bottom: 8px;
+  animation: zg-fade-in 0.15s ease-out;
+}
+
+@keyframes zg-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Floating Tabstrip */
+.tabstrip-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  padding: 4px 8px;
+  max-width: 90vw;
+  overflow-x: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--zg-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-item:hover {
+  background: var(--zg-bg-elevated);
+  color: var(--zg-text-primary);
+}
+
+.tab-item.active {
+  background: var(--zg-bg-elevated);
+  border-color: var(--zg-border);
+  color: var(--zg-text-primary);
+  font-weight: 500;
+}
+
+.tab-item.ephemeral {
+  border-left: 2px solid #a855f7;
+}
+
+.tab-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--zg-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+.tab-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--zg-text-primary);
+}
+
+.new-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--zg-text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.new-tab-btn:hover {
+  background: var(--zg-bg-elevated);
+  color: var(--zg-text-primary);
+}
+
+/* Download Bar */
+.download-bar-container {
+  width: 640px;
+  max-width: 90vw;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  padding: 10px 14px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.download-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--zg-border);
+}
+
+.download-item:last-child {
+  border-bottom: none;
+}
+
+.download-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.download-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--zg-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.download-progress-fill {
+  height: 100%;
+  background: var(--zg-accent);
+  transition: width 0.2s ease;
+}
+
+.download-item.dangerous .download-progress-fill {
+  background: var(--zg-danger);
+}

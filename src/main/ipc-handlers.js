@@ -7,7 +7,6 @@
 
 const { IPC_CHANNELS } = require('../shared/ipc-channels');
 const { createValidatedHandler } = require('./ipc-validator');
-const { DEFAULT_SETTINGS } = require('../shared/constants');
 
 /**
  * Registers all core IPC handlers on ipcMain
@@ -16,25 +15,35 @@ const { DEFAULT_SETTINGS } = require('../shared/constants');
  * @param {import('electron').IpcMain} deps.ipcMain
  * @param {import('./window-manager').WindowManager} deps.windowManager
  * @param {import('./permission-manager').PermissionManager} deps.permissionManager
- * @param {Object} [deps.tabManager]
- * @param {Object} [deps.settingsManager]
+ * @param {import('./tab-manager').TabManager} [deps.tabManager]
+ * @param {import('./settings-manager').SettingsManager} [deps.settingsManager]
+ * @param {import('./download-manager').DownloadManager} [deps.downloadManager]
+ * @param {import('./history-manager').HistoryManager} [deps.historyManager]
+ * @param {Function} [deps.sendToTrustedUI]
  */
-function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabManager, settingsManager }) {
+function registerIpcHandlers({
+  ipcMain,
+  windowManager,
+  permissionManager,
+  tabManager,
+  settingsManager,
+  downloadManager,
+  historyManager,
+  sendToTrustedUI
+}) {
   const context = {
     getTrustedUIWebContents: () => windowManager.getTrustedUIWebContents(),
     resourceAuthorizer: async (channel, payload) => {
-      // Step 4: Validate resource ownership if tabManager is present
-      if (tabManager && payload && payload.tabId) {
-        if (!tabManager.hasTab(payload.tabId)) {
+      // Step 4: Validate resource ownership
+      if (payload && payload.tabId) {
+        const targetId = payload.tabId === 'active' && tabManager ? tabManager.activeTabId : payload.tabId;
+        if (tabManager && !tabManager.hasTab(targetId)) {
           return { valid: false, error: `Tab ID not found: ${payload.tabId}` };
         }
       }
       return { valid: true };
     }
   };
-
-  // In-memory fallback settings if settingsManager is not yet mounted
-  let currentSettings = { ...DEFAULT_SETTINGS };
 
   // --- UI Channels ---
   ipcMain.handle(
@@ -56,12 +65,13 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.UI_TOGGLE_DISTRACTION_FREE,
     createValidatedHandler(IPC_CHANNELS.UI_TOGGLE_DISTRACTION_FREE, async (payload) => {
-      if (payload && typeof payload.enabled === 'boolean') {
-        currentSettings.distractionFree = payload.enabled;
-      } else {
-        currentSettings.distractionFree = !currentSettings.distractionFree;
+      if (settingsManager) {
+        const current = settingsManager.getSettings();
+        const nextState = (payload && typeof payload.enabled === 'boolean') ? payload.enabled : !current.distractionFree;
+        const updated = settingsManager.updateSettings({ distractionFree: nextState });
+        return { enabled: updated.distractionFree };
       }
-      return { enabled: currentSettings.distractionFree };
+      return { enabled: false };
     }, context)
   );
 
@@ -92,29 +102,28 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.SETTINGS_GET,
     createValidatedHandler(IPC_CHANNELS.SETTINGS_GET, async () => {
-      if (settingsManager && typeof settingsManager.getSettings === 'function') {
-        return { settings: await settingsManager.getSettings() };
+      if (settingsManager) {
+        return { settings: settingsManager.getSettings() };
       }
-      return { settings: currentSettings };
+      return { settings: {} };
     }, context)
   );
 
   ipcMain.handle(
     IPC_CHANNELS.SETTINGS_UPDATE,
     createValidatedHandler(IPC_CHANNELS.SETTINGS_UPDATE, async (payload) => {
-      if (settingsManager && typeof settingsManager.updateSettings === 'function') {
-        return { settings: await settingsManager.updateSettings(payload.patch) };
+      if (settingsManager) {
+        return { settings: settingsManager.updateSettings(payload.patch) };
       }
-      currentSettings = { ...currentSettings, ...payload.patch };
-      return { settings: currentSettings };
+      return { settings: {} };
     }, context)
   );
 
-  // --- Tab Lifecycle & Navigation (Core Phase 1 / Phase 2 integration) ---
+  // --- Tab Lifecycle & Navigation ---
   ipcMain.handle(
     IPC_CHANNELS.TAB_CREATE,
     createValidatedHandler(IPC_CHANNELS.TAB_CREATE, async (payload) => {
-      if (tabManager && typeof tabManager.createTab === 'function') {
+      if (tabManager) {
         return tabManager.createTab(payload);
       }
       return { tabId: 'tab-' + Date.now() };
@@ -124,7 +133,7 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.TAB_CLOSE,
     createValidatedHandler(IPC_CHANNELS.TAB_CLOSE, async (payload) => {
-      if (tabManager && typeof tabManager.closeTab === 'function') {
+      if (tabManager) {
         return tabManager.closeTab(payload.tabId);
       }
       return { ok: true };
@@ -134,7 +143,7 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.TAB_SWITCH,
     createValidatedHandler(IPC_CHANNELS.TAB_SWITCH, async (payload) => {
-      if (tabManager && typeof tabManager.switchTab === 'function') {
+      if (tabManager) {
         return tabManager.switchTab(payload.tabId);
       }
       return { activeId: payload.tabId };
@@ -144,7 +153,7 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.NAV_GO,
     createValidatedHandler(IPC_CHANNELS.NAV_GO, async (payload) => {
-      if (tabManager && typeof tabManager.navigateTab === 'function') {
+      if (tabManager) {
         return tabManager.navigateTab(payload.tabId, payload.url);
       }
       return { status: 'navigating' };
@@ -154,7 +163,7 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.NAV_BACK,
     createValidatedHandler(IPC_CHANNELS.NAV_BACK, async (payload) => {
-      if (tabManager && typeof tabManager.goBack === 'function') {
+      if (tabManager) {
         return tabManager.goBack(payload.tabId);
       }
       return { canGoBack: false };
@@ -164,7 +173,7 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.NAV_FORWARD,
     createValidatedHandler(IPC_CHANNELS.NAV_FORWARD, async (payload) => {
-      if (tabManager && typeof tabManager.goForward === 'function') {
+      if (tabManager) {
         return tabManager.goForward(payload.tabId);
       }
       return { canGoForward: false };
@@ -174,10 +183,152 @@ function registerIpcHandlers({ ipcMain, windowManager, permissionManager, tabMan
   ipcMain.handle(
     IPC_CHANNELS.NAV_RELOAD,
     createValidatedHandler(IPC_CHANNELS.NAV_RELOAD, async (payload) => {
-      if (tabManager && typeof tabManager.reload === 'function') {
+      if (tabManager) {
         return tabManager.reload(payload.tabId);
       }
       return { reloaded: true };
+    }, context)
+  );
+
+  // --- Find in Page ---
+  ipcMain.handle(
+    IPC_CHANNELS.FIND_START,
+    createValidatedHandler(IPC_CHANNELS.FIND_START, async (payload) => {
+      const targetId = payload.tabId === 'active' && tabManager ? tabManager.activeTabId : payload.tabId;
+      const tab = tabManager ? tabManager.getTab(targetId) : null;
+      if (!tab || !tab.view || !tab.view.webContents) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'Tab view not found' } };
+      }
+
+      const wc = tab.view.webContents;
+      if (typeof wc.findInPage === 'function') {
+        const requestId = wc.findInPage(payload.text, {
+          matchCase: Boolean(payload.matchCase),
+          forward: true,
+          findNext: false
+        });
+
+        // Attach listener for found-in-page events
+        if (!wc._hasFindListener && typeof wc.on === 'function') {
+          wc._hasFindListener = true;
+          wc.on('found-in-page', (_evt, result) => {
+            if (sendToTrustedUI) {
+              sendToTrustedUI(IPC_CHANNELS.STATE_FIND_RESULT, {
+                tabId: targetId,
+                activeMatchOrdinal: result.activeMatchOrdinal,
+                matches: result.matches
+              });
+            }
+          });
+        }
+
+        return { requestId };
+      }
+      return { requestId: 1 };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.FIND_NEXT,
+    createValidatedHandler(IPC_CHANNELS.FIND_NEXT, async (payload) => {
+      const targetId = payload.tabId === 'active' && tabManager ? tabManager.activeTabId : payload.tabId;
+      const tab = tabManager ? tabManager.getTab(targetId) : null;
+      if (!tab || !tab.view || !tab.view.webContents) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'Tab view not found' } };
+      }
+
+      const wc = tab.view.webContents;
+      if (typeof wc.findInPage === 'function') {
+        wc.findInPage(payload.text, {
+          forward: payload.forward,
+          findNext: true
+        });
+      }
+      return { ok: true };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.FIND_STOP,
+    createValidatedHandler(IPC_CHANNELS.FIND_STOP, async (payload) => {
+      const targetId = payload.tabId === 'active' && tabManager ? tabManager.activeTabId : payload.tabId;
+      const tab = tabManager ? tabManager.getTab(targetId) : null;
+      if (tab && tab.view && tab.view.webContents && typeof tab.view.webContents.stopFindInPage === 'function') {
+        tab.view.webContents.stopFindInPage('clearSelection');
+      }
+      return { ok: true };
+    }, context)
+  );
+
+  // --- Downloads ---
+  ipcMain.handle(
+    IPC_CHANNELS.DOWNLOAD_PAUSE,
+    createValidatedHandler(IPC_CHANNELS.DOWNLOAD_PAUSE, async (payload) => {
+      if (downloadManager) {
+        return downloadManager.pause(payload.downloadId);
+      }
+      return { ok: false };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.DOWNLOAD_RESUME,
+    createValidatedHandler(IPC_CHANNELS.DOWNLOAD_RESUME, async (payload) => {
+      if (downloadManager) {
+        return downloadManager.resume(payload.downloadId);
+      }
+      return { ok: false };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.DOWNLOAD_CANCEL,
+    createValidatedHandler(IPC_CHANNELS.DOWNLOAD_CANCEL, async (payload) => {
+      if (downloadManager) {
+        return downloadManager.cancel(payload.downloadId);
+      }
+      return { ok: false };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.DOWNLOAD_OPEN_FOLDER,
+    createValidatedHandler(IPC_CHANNELS.DOWNLOAD_OPEN_FOLDER, async (payload) => {
+      if (downloadManager) {
+        return downloadManager.openFolder(payload.downloadId);
+      }
+      return { ok: false };
+    }, context)
+  );
+
+  // --- History ---
+  ipcMain.handle(
+    IPC_CHANNELS.HISTORY_LIST,
+    createValidatedHandler(IPC_CHANNELS.HISTORY_LIST, async (payload) => {
+      if (historyManager) {
+        return historyManager.list(payload || {});
+      }
+      return { entries: [] };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.HISTORY_DELETE_ENTRY,
+    createValidatedHandler(IPC_CHANNELS.HISTORY_DELETE_ENTRY, async (payload) => {
+      if (historyManager) {
+        return historyManager.deleteEntry(payload.entryId);
+      }
+      return { ok: false };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.HISTORY_CLEAR,
+    createValidatedHandler(IPC_CHANNELS.HISTORY_CLEAR, async (payload) => {
+      if (historyManager) {
+        return historyManager.clear(payload ? payload.range : 'all');
+      }
+      return { ok: true };
     }, context)
   );
 }

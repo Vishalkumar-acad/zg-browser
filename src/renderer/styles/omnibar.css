@@ -1,0 +1,47 @@
+/* Omnibar Styles */
+.omnibar-overlay {
+  display: flex;
+  flex-direction: column;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  width: 680px;
+  max-width: 90vw;
+  overflow: hidden;
+}
+
+.omnibar-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+.omnibar-security-badge {
+  font-size: 13px;
+  color: var(--zg-text-secondary);
+}
+
+.omnibar-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--zg-text-primary);
+  font-size: 15px;
+  font-family: var(--zg-font-sans);
+}
+
+.omnibar-input::placeholder {
+  color: var(--zg-text-secondary);
+}
+
+.omnibar-hints {
+  display: flex;
+  padding: 6px 14px 10px;
+  font-size: 12px;
+  color: var(--zg-text-secondary);
+  border-top: 1px solid var(--zg-border);
+  gap: 16px;
+}
