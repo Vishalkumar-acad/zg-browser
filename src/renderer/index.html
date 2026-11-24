@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <title>Zero-Gravity Browser</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body class="zg-theme-dark">
+  <!-- Top 4px hover trigger zone -->
+  <div id="hover-trigger" class="hover-trigger" title="Hover or press Ctrl/Cmd+L to open Omnibar"></div>
+
+  <!-- Floating Overlays Container (Managed by Dual-Layer Bounds) -->
+  <div id="overlays-root" class="overlays-root" hidden>
+    <!-- Omnibar Overlay -->
+    <div id="overlay-omnibar" class="overlay-panel" hidden>
+      <div class="omnibar-container">
+        <input type="text" id="omnibar-input" placeholder="Search or enter address..." autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- Certificate Error Banner -->
+    <div id="overlay-cert-error" class="overlay-panel cert-error-panel" hidden>
+      <div class="cert-error-content">
+        <span class="warning-icon">⚠️</span>
+        <span id="cert-error-text">Security Warning: The website presented an untrusted certificate. Navigation blocked.</span>
+      </div>
+    </div>
+
+    <!-- Permission Prompt Banner -->
+    <div id="overlay-permission-prompt" class="overlay-panel permission-panel" hidden>
+      <div class="permission-content">
+        <span id="permission-prompt-text">Permission request</span>
+        <div class="permission-actions">
+          <button id="permission-allow-btn" class="zg-btn zg-btn-primary">Allow</button>
+          <button id="permission-deny-btn" class="zg-btn">Deny</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side Scratchpad Drawer -->
+  <aside id="scratchpad-drawer" class="scratchpad-drawer" hidden>
+    <div class="drawer-header">
+      <span class="drawer-title">Scratchpad</span>
+      <button id="drawer-close-btn" class="zg-btn-icon" title="Close Drawer (Esc)">✕</button>
+    </div>
+    <div class="drawer-body">
+      <textarea id="scratchpad-editor" placeholder="Write notes, snippets, or code here..." spellcheck="false"></textarea>
+    </div>
+  </aside>
+
+  <script src="components/index.js"></script>
+</body>
+</html>

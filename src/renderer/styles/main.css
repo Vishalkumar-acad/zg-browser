@@ -1,0 +1,171 @@
+/**
+ * Zero-Gravity Browser - Modular CSS Variables & Minimal Theme
+ */
+
+:root {
+  --zg-bg-primary: #0f1117;
+  --zg-bg-secondary: #1a1d24;
+  --zg-bg-elevated: #242832;
+  --zg-text-primary: #f0f2f5;
+  --zg-text-secondary: #9ba1a6;
+  --zg-accent: #3b82f6;
+  --zg-accent-hover: #2563eb;
+  --zg-danger: #ef4444;
+  --zg-border: #2e3440;
+  --zg-radius: 8px;
+  --zg-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --zg-font-mono: "SF Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--zg-font-sans);
+  background: transparent;
+  color: var(--zg-text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  user-select: none;
+}
+
+/* 4px top trigger zone */
+.hover-trigger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  z-index: 9999;
+  background: transparent;
+}
+
+.hover-trigger:hover {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+/* Overlays Container */
+.overlays-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  pointer-events: auto;
+}
+
+.overlay-panel {
+  width: 640px;
+  max-width: 90vw;
+  background: var(--zg-bg-secondary);
+  border: 1px solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+/* Omnibar */
+.omnibar-container {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.omnibar-container input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--zg-text-primary);
+  font-size: 14px;
+  font-family: var(--zg-font-sans);
+}
+
+/* Cert Error Banner */
+.cert-error-panel {
+  background: #3b1111;
+  border-color: var(--zg-danger);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #fca5a5;
+}
+
+/* Permission Prompt */
+.permission-panel {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.permission-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.zg-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--zg-border);
+  background: var(--zg-bg-elevated);
+  color: var(--zg-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.zg-btn-primary {
+  background: var(--zg-accent);
+  border-color: var(--zg-accent);
+  color: #fff;
+}
+
+/* Side Scratchpad Drawer */
+.scratchpad-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100vh;
+  background: var(--zg-bg-primary);
+  border-left: 1px solid var(--zg-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 2000;
+}
+
+.drawer-header {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--zg-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.drawer-body {
+  flex: 1;
+  display: flex;
+}
+
+.drawer-body textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 12px;
+  color: var(--zg-text-primary);
+  font-family: var(--zg-font-mono);
+  font-size: 13px;
+  resize: none;
+}
