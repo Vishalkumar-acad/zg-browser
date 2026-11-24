@@ -21,6 +21,7 @@ const { createValidatedHandler } = require('./ipc-validator');
  * @param {import('./history-manager').HistoryManager} [deps.historyManager]
  * @param {import('./privacy-manager').PrivacyManager} [deps.privacyManager]
  * @param {import('./storage-manager').MainStorageManager} [deps.storageManager]
+ * @param {import('./github-service').GitHubService} [deps.githubService]
  * @param {Function} [deps.sendToTrustedUI]
  */
 function registerIpcHandlers({
@@ -33,6 +34,7 @@ function registerIpcHandlers({
   historyManager,
   privacyManager,
   storageManager,
+  githubService,
   sendToTrustedUI
 }) {
   const context = {
@@ -411,6 +413,87 @@ function registerIpcHandlers({
         }
       }
       return { importedCount: 0 };
+    }, context)
+  );
+
+  // --- GitHub Vault Sync ---
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_AUTH_START,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_AUTH_START, async () => {
+      if (githubService) {
+        return githubService.authStart();
+      }
+      return { verificationUri: 'https://github.com/login/device', userCode: '' };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_AUTH_PAT_SUBMIT,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_AUTH_PAT_SUBMIT, async (payload) => {
+      if (githubService) {
+        return githubService.authPatSubmit(payload.token);
+      }
+      return { saved: true };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_AUTH_LOGOUT,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_AUTH_LOGOUT, async () => {
+      if (githubService) {
+        return githubService.authLogout();
+      }
+      return { ok: true };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_STATUS,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_STATUS, async () => {
+      if (githubService) {
+        return githubService.getStatus();
+      }
+      return { authenticated: false };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_SET_REPO,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_SET_REPO, async (payload) => {
+      if (githubService) {
+        return githubService.setRepo(payload.owner, payload.repo);
+      }
+      return { repo: `${payload.owner}/${payload.repo}` };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_PUSH,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_PUSH, async (payload) => {
+      if (githubService) {
+        return githubService.push(payload.path, payload.content, payload.message);
+      }
+      return { commitSha: 'mock-sha' };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_PULL,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_PULL, async (payload) => {
+      if (githubService) {
+        return githubService.pull(payload.path);
+      }
+      return { content: '', sha: 'mock-sha' };
+    }, context)
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.GITHUB_DIFF,
+    createValidatedHandler(IPC_CHANNELS.GITHUB_DIFF, async (payload) => {
+      if (githubService) {
+        return githubService.diff(payload.path, payload.localContent);
+      }
+      return { diff: '' };
     }, context)
   );
 }

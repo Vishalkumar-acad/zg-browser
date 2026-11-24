@@ -19,6 +19,8 @@ const { HistoryManager } = require('./history-manager');
 const { SettingsManager } = require('./settings-manager');
 const { PrivacyManager } = require('./privacy-manager');
 const { MainStorageManager } = require('./storage-manager');
+const { SecretsManager } = require('./secrets-manager');
+const { GitHubService } = require('./github-service');
 const { registerIpcHandlers } = require('./ipc-handlers');
 
 // Register zg:// privileged scheme before app.whenReady()
@@ -41,6 +43,8 @@ if (!gotTheLock) {
   let settingsManager;
   let privacyManager;
   let storageManager;
+  let secretsManager;
+  let githubService;
 
   const preloadPath = path.join(__dirname, '../preload/index.js');
   const rendererDir = path.join(__dirname, '../renderer');
@@ -87,6 +91,8 @@ if (!gotTheLock) {
     downloadManager = new DownloadManager({ sendToTrustedUI });
     privacyManager = new PrivacyManager({ sessionManager });
     storageManager = new MainStorageManager();
+    secretsManager = new SecretsManager();
+    githubService = new GitHubService({ secretsManager, settingsManager });
 
     // Attach session managers to persistent session
     const persistentSession = sessionManager.getPersistentSession();
@@ -127,6 +133,7 @@ if (!gotTheLock) {
       historyManager,
       privacyManager,
       storageManager,
+      githubService,
       sendToTrustedUI
     });
 
