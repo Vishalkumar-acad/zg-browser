@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Security & Unit Test Suite
+    name: Build & Test Suite
     runs-on: ubuntu-latest
 
     steps:
@@ -20,8 +20,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Build & Source Syntax Validation
+        run: npm run build
+
       - name: Run Automated Security Test Suite
         run: npm run test:security
 
-      - name: Run All Tests
+      - name: Run Full Test Suite (Sequential Low-Memory Mode)
         run: npm test
